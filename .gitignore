@@ -9,3 +9,4 @@ secrets/
 
 finetuning/data/raw/user_provided
 finetuning/data/raw/user_data_chatml.jsonl
+finetuning/data/raw/combined_raw.jsonl
