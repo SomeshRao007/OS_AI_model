@@ -146,8 +146,9 @@ def filter_dataset(input_path: Path, output_dir: Path):
         response = get_assistant_content(ex)
         instruction = get_user_content(ex)
 
-        # 1. Too short
-        if len(response) < 50:
+        # 1. Too short — only filter truly empty/trivial responses
+        # Many valid bash commands are short (e.g. "chmod +x *.sh" = 28 chars)
+        if len(response) < 10:
             stats["too_short"] += 1
             continue
 
