@@ -1,0 +1,11 @@
+# Claude Code
+.claude/
+
+# User info / secrets
+*.env
+.env*
+credentials/
+secrets/
+
+finetuning/data/raw/user_provided
+finetuning/data/raw/user_data_chatml.jsonl
