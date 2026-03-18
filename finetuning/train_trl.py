@@ -162,7 +162,7 @@ def build_training_args(config: dict) -> SFTConfig:
         eval_steps=t["eval_steps"],
         seed=t["seed"],
         report_to=t["report_to"],
-        max_seq_length=config["model"]["max_seq_length"],
+        max_length=config["model"]["max_seq_length"],
         packing=False,  # preserve chat message boundaries
         remove_unused_columns=False,
     )

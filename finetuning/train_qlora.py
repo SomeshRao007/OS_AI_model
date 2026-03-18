@@ -172,7 +172,7 @@ def main():
         eval_steps=t["eval_steps"],
         seed=t["seed"],
         report_to=t["report_to"],
-        max_seq_length=config["model"]["max_seq_length"],
+        max_length=config["model"]["max_seq_length"],
         packing=False,
         remove_unused_columns=False,
     )
