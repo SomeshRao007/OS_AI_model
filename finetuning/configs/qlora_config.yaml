@@ -1,0 +1,61 @@
+# QLoRA fine-tuning config for Qwen3.5-4B
+# Both train_trl.py and train_qlora.py read this file.
+# CLI args override any value here.
+
+model:
+  name: "Qwen/Qwen3.5-4B"
+  max_seq_length: 2048
+  dtype: null  # auto-detect (bf16 on Ampere+, fp16 otherwise)
+
+lora:
+  r: 64
+  alpha: 128
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_use_double_quant: true
+  bnb_4bit_compute_dtype: "bfloat16"
+
+training:
+  num_epochs: 3
+  per_device_train_batch_size: 8   # 32GB VRAM (RTX 5090) fits batch=8
+  gradient_accumulation_steps: 4
+  learning_rate: 2.0e-5
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  optimizer: "paged_adamw_8bit"
+  gradient_checkpointing: true
+  bf16: true
+  fp16: false
+  logging_steps: 10
+  save_steps: 200
+  save_total_limit: 3
+  eval_strategy: "steps"
+  eval_steps: 200
+  seed: 42
+  report_to: "wandb"  # "wandb" to enable W&B logging
+
+data:
+  train_file: "data/output/train.jsonl"
+  val_file: "data/output/val.jsonl"
+
+output:
+  dir: "output/qlora-run"
+  gguf_dir: "output/gguf"
+  gguf_quant: "q5_k_m"
+
+resume_from_checkpoint: null

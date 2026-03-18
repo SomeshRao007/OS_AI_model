@@ -1,0 +1,22 @@
+# Training dependencies for Vast.ai
+# Install: pip install -r requirements-train.txt
+
+# Core — TRL+PEFT (primary training stack)
+transformers>=4.57.0    # Qwen3.5 model class needs >=4.57.0
+trl>=0.18.2
+peft>=0.18.0
+bitsandbytes>=0.45.5
+accelerate>=0.34.0
+datasets>=3.4.1
+
+# Config + tokenization
+pyyaml>=6.0
+sentencepiece>=0.2.0
+protobuf>=4.25.0
+
+# Monitoring (optional — set report_to: "wandb" in config)
+wandb>=0.19.0
+
+# Unsloth (optional try-first — may not support qwen3_5 yet)
+# Uncomment if you want to try train_qlora.py first:
+# unsloth==2026.3.4
