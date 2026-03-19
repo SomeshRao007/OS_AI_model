@@ -9,6 +9,7 @@ Usage:
   python train_trl.py --lr 1e-5 --epochs 5           # override hyperparams
   python train_trl.py --resume output/qlora-run/checkpoint-400
   python train_trl.py --wandb                        # enable W&B logging
+  python train_trl.py --push-to-hub SomeshRao007/qwen3.5-4b-os-qlora  # upload adapter to HF Hub
 """
 
 import argparse
@@ -41,8 +42,14 @@ def apply_cli_overrides(config: dict, args: argparse.Namespace) -> dict:
         ("training", "gradient_accumulation_steps"): args.grad_accum,
         ("training", "save_steps"): args.save_steps,
         ("training", "report_to"): "wandb" if args.wandb else None,
+        ("training", "run_name"): args.run_name,
         ("output", "dir"): args.output_dir,
     }
+
+    if args.push_to_hub:
+        config.setdefault("hub", {})
+        config["hub"]["push_to_hub"] = True
+        config["hub"]["repo_id"] = args.push_to_hub
     for (section, key), value in overrides.items():
         if value is not None:
             config[section][key] = value
@@ -156,12 +163,14 @@ def build_training_args(config: dict) -> SFTConfig:
         bf16=t["bf16"],
         fp16=t["fp16"],
         logging_steps=t["logging_steps"],
+        logging_first_step=t.get("logging_first_step", True),
         save_steps=t["save_steps"],
         save_total_limit=t["save_total_limit"],
         eval_strategy=t["eval_strategy"],
         eval_steps=t["eval_steps"],
         seed=t["seed"],
         report_to=t["report_to"],
+        run_name=t.get("run_name"),
         max_length=config["model"]["max_seq_length"],
         packing=False,  # preserve chat message boundaries
         remove_unused_columns=False,
@@ -188,6 +197,9 @@ def main():
     parser.add_argument("--resume", type=str, help="Resume from checkpoint path")
     parser.add_argument("--save-steps", type=int)
     parser.add_argument("--wandb", action="store_true", help="Enable W&B logging")
+    parser.add_argument("--run-name", type=str, help="W&B run name")
+    parser.add_argument("--push-to-hub", type=str, metavar="REPO_ID",
+                        help="Push adapter to HF Hub (e.g. SomeshRao007/qwen3.5-4b-os-qlora)")
     args = parser.parse_args()
 
     config_path = resolve_path(args.config)
@@ -228,6 +240,16 @@ def main():
     model.save_pretrained(output_dir)
     tokenizer.save_pretrained(output_dir)
 
+    # Push to HF Hub if configured
+    hub_config = config.get("hub", {})
+    if hub_config.get("push_to_hub") and hub_config.get("repo_id"):
+        repo_id = hub_config["repo_id"]
+        private = hub_config.get("private", True)
+        print(f"\nPushing adapter to HF Hub: {repo_id} (private={private})...")
+        model.push_to_hub(repo_id, private=private)
+        tokenizer.push_to_hub(repo_id, private=private)
+        print(f"Adapter uploaded to: https://huggingface.co/{repo_id}")
+
     # Summary
     print(f"\n{'='*60}")
     print(f"Training complete!")
@@ -235,6 +257,8 @@ def main():
     print(f"  Steps: {result.global_step}")
     print(f"  Runtime: {result.metrics['train_runtime']:.0f}s")
     print(f"  Adapter saved to: {output_dir}")
+    if hub_config.get("push_to_hub") and hub_config.get("repo_id"):
+        print(f"  HF Hub: https://huggingface.co/{hub_config['repo_id']}")
     print(f"\nTo export GGUF, merge the adapter and convert with llama.cpp:")
     print(f"  1. Merge: python -c \"from peft import AutoPeftModelForCausalLM; m = AutoPeftModelForCausalLM.from_pretrained('{output_dir}'); m = m.merge_and_unload(); m.save_pretrained('{output_dir}/merged')\"")
     print(f"  2. Convert: python llama.cpp/convert_hf_to_gguf.py {output_dir}/merged --outtype q5_k_m")

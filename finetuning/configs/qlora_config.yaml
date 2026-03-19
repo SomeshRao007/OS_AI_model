@@ -41,13 +41,15 @@ training:
   gradient_checkpointing: true
   bf16: true
   fp16: false
-  logging_steps: 10
+  logging_steps: 5
+  logging_first_step: true
   save_steps: 200
   save_total_limit: 3
   eval_strategy: "steps"
   eval_steps: 200
   seed: 42
   report_to: "wandb"  # "wandb" to enable W&B logging
+  run_name: "qwen3.5-4b-os-qlora"  # W&B run name
 
 data:
   train_file: "data/output/train.jsonl"
@@ -57,5 +59,10 @@ output:
   dir: "output/qlora-run"
   gguf_dir: "output/gguf"
   gguf_quant: "q5_k_m"
+
+hub:
+  push_to_hub: false  # set true + repo_id to upload adapter after training
+  repo_id: null       # e.g. "SomeshRao007/qwen3.5-4b-os-qlora"
+  private: true
 
 resume_from_checkpoint: null
