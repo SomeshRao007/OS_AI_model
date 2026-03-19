@@ -13,11 +13,15 @@ Usage:
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 import torch
 import yaml
+
+# Reduce memory fragmentation — recommended by PyTorch for OOM scenarios
+os.environ.setdefault("PYTORCH_ALLOC_CONF", "expandable_segments:True")
 from datasets import load_dataset
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
@@ -90,6 +94,7 @@ def build_model_and_tokenizer(config: dict):
         device_map="auto",
         torch_dtype=compute_dtype,
         trust_remote_code=True,
+        attn_implementation="sdpa",   # memory-efficient attention (works on all GPUs)
     )
 
     # Prepare for QLoRA training
@@ -172,8 +177,10 @@ def build_training_args(config: dict) -> SFTConfig:
         report_to=t["report_to"],
         run_name=t.get("run_name"),
         max_length=config["model"]["max_seq_length"],
-        packing=False,  # preserve chat message boundaries
+        packing=True,           # pack short examples to fill 1024-token windows (~10-15x speedup; 99% of examples are <756 tokens so no truncation)
         remove_unused_columns=False,
+        dataloader_num_workers=4,  # prefetch batches in parallel to keep GPU fed
+        dataloader_pin_memory=True,  # faster CPU→GPU transfers
     )
 
     # max_steps overrides num_epochs when set (useful for dry runs)

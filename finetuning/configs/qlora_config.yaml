@@ -4,7 +4,7 @@
 
 model:
   name: "Qwen/Qwen3.5-4B"
-  max_seq_length: 2048
+  max_seq_length: 1024   # reduced from 2048 — cuts logits memory 4x, most OS examples are short
   dtype: null  # auto-detect (bf16 on Ampere+, fp16 otherwise)
 
 lora:
@@ -30,8 +30,8 @@ quantization:
 
 training:
   num_epochs: 3
-  per_device_train_batch_size: 8   # 32GB VRAM (RTX 5090) fits batch=8
-  gradient_accumulation_steps: 4
+  per_device_train_batch_size: 8   # try 8 again — seq=1024 (half of prev 2048) should fit now
+  gradient_accumulation_steps: 4   # effective batch=32 maintained
   learning_rate: 2.0e-5
   lr_scheduler_type: "cosine"
   warmup_ratio: 0.05
