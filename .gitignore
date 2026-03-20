@@ -11,4 +11,10 @@ output/
 finetuning/data/raw/user_provided
 finetuning/data/raw/user_data_chatml.jsonl
 finetuning/data/raw/combined_raw.jsonl
-finetuning/data/raw/combined_raw.jsonl
+
+# Large generated data files (too big for GitHub, contain synthetic API key patterns)
+finetuning/data/raw/synthetic_direct.jsonl
+finetuning/data/raw/synthetic_clarification.jsonl
+finetuning/data/raw/synthetic_troubleshoot.jsonl
+finetuning/data/raw/combined_directstyle.jsonl
+finetuning/data/output/

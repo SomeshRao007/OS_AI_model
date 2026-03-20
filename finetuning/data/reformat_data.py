@@ -264,6 +264,7 @@ def reformat_all(stats_only: bool = False):
         "manpages_total": 0,
         "synthetic_direct": 0,
         "synthetic_clarification": 0,
+        "synthetic_troubleshoot": 0,
         "system_prompts_swapped": 0,
     }
 
@@ -354,14 +355,18 @@ def reformat_all(stats_only: bool = False):
     print("\n[5/6] Adding synthetic data...")
     synthetic_direct = load_jsonl(RAW_DIR / "synthetic_direct.jsonl")
     synthetic_clarification = load_jsonl(RAW_DIR / "synthetic_clarification.jsonl")
+    synthetic_troubleshoot = load_jsonl(RAW_DIR / "synthetic_troubleshoot.jsonl")
     stats["synthetic_direct"] = len(synthetic_direct)
     stats["synthetic_clarification"] = len(synthetic_clarification)
+    stats["synthetic_troubleshoot"] = len(synthetic_troubleshoot)
 
     all_output.extend(synthetic_direct)
     all_output.extend(synthetic_clarification)
+    all_output.extend(synthetic_troubleshoot)
 
     print(f"  Synthetic direct: {stats['synthetic_direct']}, "
-          f"clarification: {stats['synthetic_clarification']}")
+          f"clarification: {stats['synthetic_clarification']}, "
+          f"troubleshoot: {stats['synthetic_troubleshoot']}")
 
     # --- 6. Summary ---
     print(f"\n{'='*60}")
