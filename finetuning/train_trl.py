@@ -88,10 +88,16 @@ def build_model_and_tokenizer(config: dict):
 
     print(f"Loading model: {model_name}")
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+
+    # Use device_map for single-GPU, let accelerate handle multi-GPU (DDP)
+    num_gpus = torch.cuda.device_count()
+    device_map = {"": int(os.environ.get("LOCAL_RANK", 0))} if num_gpus > 1 else "auto"
+    print(f"  GPUs detected: {num_gpus}, device_map: {device_map}")
+
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         quantization_config=bnb_config,
-        device_map="auto",
+        device_map=device_map,
         torch_dtype=compute_dtype,
         trust_remote_code=True,
         attn_implementation="sdpa",   # memory-efficient attention (works on all GPUs)
@@ -179,7 +185,7 @@ def build_training_args(config: dict) -> SFTConfig:
         max_length=config["model"]["max_seq_length"],
         packing=True,           # pack short examples to fill 1024-token windows (~10-15x speedup; 99% of examples are <756 tokens so no truncation)
         remove_unused_columns=False,
-        dataloader_num_workers=4,  # prefetch batches in parallel to keep GPU fed
+        dataloader_num_workers=8,  # prefetch batches in parallel to keep GPU fed (96 cores available)
         dataloader_pin_memory=True,  # faster CPU→GPU transfers
     )
 
