@@ -18,6 +18,10 @@ from peft import PeftModel
 
 BASE_MODEL = "Qwen/Qwen3.5-4B"
 
+# Resolve default adapter path relative to this script — works regardless of cwd
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_DEFAULT_ADAPTER = os.path.join(_SCRIPT_DIR, "output", "qlora-run")
+
 SYSTEM_PROMPT = (
     "You are a Linux system expert and OS assistant. "
     "Provide accurate, concise answers about Linux commands, "
@@ -93,7 +97,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--adapter",
-        default="finetuning/output/qlora-run",
+        default=_DEFAULT_ADAPTER,
         help="Path to adapter directory (default: finetuning/output/qlora-run)",
     )
     parser.add_argument(
