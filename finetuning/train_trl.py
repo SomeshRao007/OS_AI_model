@@ -89,15 +89,13 @@ def build_model_and_tokenizer(config: dict):
     print(f"Loading model: {model_name}")
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 
-    # Use device_map for single-GPU, let accelerate handle multi-GPU (DDP)
     num_gpus = torch.cuda.device_count()
-    device_map = {"": int(os.environ.get("LOCAL_RANK", 0))} if num_gpus > 1 else "auto"
-    print(f"  GPUs detected: {num_gpus}, device_map: {device_map}")
+    print(f"  GPUs detected: {num_gpus} — using device_map='auto' to spread layers across all GPUs")
 
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         quantization_config=bnb_config,
-        device_map=device_map,
+        device_map="auto",
         torch_dtype=compute_dtype,
         trust_remote_code=True,
         attn_implementation="sdpa",   # memory-efficient attention (works on all GPUs)

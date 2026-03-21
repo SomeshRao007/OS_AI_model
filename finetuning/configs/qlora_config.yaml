@@ -30,8 +30,8 @@ quantization:
 
 training:
   num_epochs: 3
-  per_device_train_batch_size: 16  # 31 GB per GPU, 4-bit model ~2.5 GB — plenty of room
-  gradient_accumulation_steps: 2   # effective batch = 16 × 2 GPUs × 2 = 64
+  per_device_train_batch_size: 32  # 63.7 GB across 2 GPUs with device_map=auto, 4-bit model ~2.5 GB
+  gradient_accumulation_steps: 2   # effective batch = 32 × 2 = 64
   learning_rate: 2.0e-5
   lr_scheduler_type: "cosine"
   warmup_ratio: 0.05
