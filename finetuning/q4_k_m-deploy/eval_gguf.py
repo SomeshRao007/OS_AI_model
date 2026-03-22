@@ -1,24 +1,28 @@
 """
-Evaluation script for GGUF models (Q4_K_M, Q5_K_M, etc.)
+Evaluation script for GGUF models via Ollama API.
 Tests the fine-tuned model on the same 44 OS/Linux domain questions as eval_adapter.py.
 
-Usage (on Vast.ai or any machine with the GGUF file):
-    pip install llama-cpp-python
-    python eval_gguf.py
+Prerequisites:
+    ollama serve  (must be running)
+    ollama create os-ai -f Modelfile  (model must be imported)
+
+Usage:
     python eval_gguf.py --no-score
-    python eval_gguf.py --model /path/to/model.gguf
-    python eval_gguf.py --compare /path/to/other.gguf   # side-by-side comparison
+    python eval_gguf.py --model os-ai
+    python eval_gguf.py --no-score --output eval_results.json
+    python eval_gguf.py --compare qwen3.5:4b   # side-by-side with base model
 """
 
 import argparse
 import json
-import os
 import re
 import sys
 import time
+import urllib.error
+import urllib.request
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_MODEL = os.path.join(SCRIPT_DIR, "qwen3.5-4b-os-q4km.gguf")
+DEFAULT_MODEL = "os-ai"
+OLLAMA_URL = "http://localhost:11434/api/chat"
 
 SYSTEM_PROMPT = (
     "You are an AI assistant built into a Linux-based operating system. "
@@ -94,16 +98,16 @@ TEST_QUESTIONS = [
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Evaluate GGUF model on OS/Linux questions")
+    parser = argparse.ArgumentParser(description="Evaluate GGUF model via Ollama")
     parser.add_argument(
         "--model",
         default=DEFAULT_MODEL,
-        help="Path to GGUF model file",
+        help="Ollama model name (default: os-ai)",
     )
     parser.add_argument(
         "--compare",
         default=None,
-        help="Path to second GGUF model for side-by-side comparison",
+        help="Second Ollama model name for side-by-side comparison",
     )
     parser.add_argument(
         "--no-score",
@@ -113,20 +117,8 @@ def parse_args():
     parser.add_argument(
         "--max-tokens",
         type=int,
-        default=300,
-        help="Max tokens to generate per response (default: 300)",
-    )
-    parser.add_argument(
-        "--n-gpu-layers",
-        type=int,
-        default=-1,
-        help="Number of layers to offload to GPU (-1 = all, 0 = CPU only)",
-    )
-    parser.add_argument(
-        "--n-ctx",
-        type=int,
-        default=512,
-        help="Context window size (default: 512)",
+        default=250,
+        help="Max tokens to generate per response (default: 250)",
     )
     parser.add_argument(
         "--output",
@@ -136,61 +128,77 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_model(model_path, n_gpu_layers, n_ctx):
-    from llama_cpp import Llama
-
-    if not os.path.isfile(model_path):
-        print(f"ERROR: GGUF file not found: {model_path}")
-        sys.exit(1)
-
-    print(f"Loading GGUF model: {model_path}")
-    print(f"  GPU layers: {n_gpu_layers}  |  Context: {n_ctx}")
-
-    model = Llama(
-        model_path=model_path,
-        n_gpu_layers=n_gpu_layers,
-        n_ctx=n_ctx,
-        verbose=False,
-    )
-
-    size_mb = os.path.getsize(model_path) / (1024 * 1024)
-    print(f"  Model size: {size_mb:.0f} MB")
-    return model
-
-
 def strip_thinking(text):
     """Remove <think>...</think> blocks from model output."""
     cleaned = re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL)
-    # Also handle unclosed think blocks (model started thinking but got cut off)
     cleaned = re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL)
     return cleaned.strip()
 
 
-def generate(model, question, max_tokens):
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": question},
-    ]
+def ollama_chat(model_name, question, max_tokens):
+    """Call Ollama chat API and return response content, token count, and speed."""
+    payload = {
+        "model": model_name,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": question},
+        ],
+        "stream": False,
+        "options": {
+            "temperature": 0.1,
+            "top_p": 0.9,
+            "num_predict": max_tokens,
+            "num_ctx": 512,
+        },
+    }
+
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        OLLAMA_URL,
+        data=data,
+        headers={"Content-Type": "application/json"},
+    )
 
     start = time.time()
-    response = model.create_chat_completion(
-        messages=messages,
-        max_tokens=max_tokens,
-        temperature=0.1,
-        top_p=0.9,
-        stop=["<|im_end|>", "<|endoftext|>", "</think>"],
-    )
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        result = json.loads(resp.read().decode("utf-8"))
     elapsed = time.time() - start
 
-    content = response["choices"][0]["message"]["content"]
+    content = result.get("message", {}).get("content", "")
     content = strip_thinking(content)
-    tokens_generated = response["usage"]["completion_tokens"]
-    tok_per_sec = tokens_generated / elapsed if elapsed > 0 else 0
 
-    return content, tokens_generated, tok_per_sec
+    eval_count = result.get("eval_count", 0)
+    eval_duration_ns = result.get("eval_duration", 1)
+    tok_per_sec = (eval_count / eval_duration_ns * 1e9) if eval_duration_ns > 0 else 0
+
+    return content, eval_count, tok_per_sec
 
 
-def run_eval(model, model_name, args):
+def check_ollama(model_name):
+    """Verify Ollama is running and the model exists."""
+    # Check server
+    health_req = urllib.request.Request("http://localhost:11434/api/tags")
+    try:
+        with urllib.request.urlopen(health_req, timeout=5) as resp:
+            tags = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, ConnectionRefusedError):
+        print("ERROR: Ollama is not running. Start it with: ollama serve &")
+        sys.exit(1)
+
+    # Check model exists
+    model_names = [m.get("name", "") for m in tags.get("models", [])]
+    # Ollama model names can have :latest suffix
+    found = any(model_name in name for name in model_names)
+    if not found:
+        print(f"ERROR: Model '{model_name}' not found in Ollama.")
+        print(f"Available models: {', '.join(model_names)}")
+        print(f"Import with: ollama create {model_name} -f Modelfile")
+        sys.exit(1)
+
+    print(f"Ollama model: {model_name}")
+
+
+def run_eval(model_name, args):
     print(f"\n{'=' * 70}")
     print(f"EVALUATION — {model_name}")
     print(f"{'=' * 70}")
@@ -205,7 +213,7 @@ def run_eval(model, model_name, args):
         print(f"\n[{i}/{len(TEST_QUESTIONS)}] [{domain.upper()}] {question}")
         print("-" * 50)
 
-        response, tokens, tok_s = generate(model, question, args.max_tokens)
+        response, tokens, tok_s = ollama_chat(model_name, question, args.max_tokens)
         print(response)
         print(f"\n  ({tokens} tokens, {tok_s:.1f} tok/s)")
         print("-" * 50)
@@ -263,21 +271,18 @@ def run_eval(model, model_name, args):
 def main():
     args = parse_args()
 
-    model = load_model(args.model, args.n_gpu_layers, args.n_ctx)
-    model_name = os.path.basename(args.model)
-    results_primary = run_eval(model, model_name, args)
+    check_ollama(args.model)
+    results_primary = run_eval(args.model, args)
 
     results_compare = None
     if args.compare:
-        del model
-        model2 = load_model(args.compare, args.n_gpu_layers, args.n_ctx)
-        model2_name = os.path.basename(args.compare)
-        results_compare = run_eval(model2, model2_name, args)
+        check_ollama(args.compare)
+        results_compare = run_eval(args.compare, args)
 
     if args.output:
-        output_data = {"model": model_name, "results": results_primary}
+        output_data = {"model": args.model, "results": results_primary}
         if results_compare:
-            output_data["compare_model"] = os.path.basename(args.compare)
+            output_data["compare_model"] = args.compare
             output_data["compare_results"] = results_compare
         with open(args.output, "w", encoding="utf-8") as f:
             json.dump(output_data, f, indent=2, ensure_ascii=False)
