@@ -10,6 +10,7 @@ Usage (from project root):
 
 import argparse
 import os
+import re
 import sys
 
 import torch
@@ -23,9 +24,11 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _DEFAULT_ADAPTER = os.path.join(_SCRIPT_DIR, "output", "qlora-run")
 
 SYSTEM_PROMPT = (
-    "You are a Linux system expert and OS assistant. "
-    "Provide accurate, concise answers about Linux commands, "
-    "system administration, and kernel concepts."
+    "You are an AI assistant built into a Linux-based operating system. "
+    "Respond with one correct command in a bash code block followed by a one-line explanation. "
+    "For conceptual questions, explain in 2-4 sentences. "
+    "If the request is ambiguous, ask one clarifying question. "
+    "Never list alternatives. Never restate the question. Never explain individual flags."
 )
 
 TEST_QUESTIONS = [
@@ -144,17 +147,25 @@ def load_model(adapter_path: str):
     return model, tokenizer
 
 
+def strip_thinking(text):
+    """Remove <think>...</think> blocks from model output."""
+    cleaned = re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL)
+    cleaned = re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL)
+    return cleaned.strip()
+
+
 def generate(model, tokenizer, question: str, max_new_tokens: int) -> str:
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": question},
     ]
+    # enable_thinking=False tells Qwen 3.5 to skip <think> reasoning
     text = tokenizer.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
+        messages, tokenize=False, add_generation_prompt=True,
+        enable_thinking=False,
     )
     inputs = tokenizer(text, return_tensors="pt").to(model.device)
 
-    # pad_token_id fallback: some tokenizers don't set it explicitly
     pad_id = tokenizer.pad_token_id or tokenizer.eos_token_id
 
     with torch.no_grad():
@@ -166,9 +177,9 @@ def generate(model, tokenizer, question: str, max_new_tokens: int) -> str:
             pad_token_id=pad_id,
         )
 
-    # Decode only the newly generated tokens
     new_tokens = out[0][inputs["input_ids"].shape[1]:]
-    return tokenizer.decode(new_tokens, skip_special_tokens=True)
+    response = tokenizer.decode(new_tokens, skip_special_tokens=True)
+    return strip_thinking(response)
 
 
 def main():
