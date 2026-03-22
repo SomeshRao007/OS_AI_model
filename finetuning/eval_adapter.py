@@ -133,7 +133,7 @@ def load_model(adapter_path: str):
     print(f"Loading base model: {BASE_MODEL}  (dtype={dtype})")
     model = AutoModelForCausalLM.from_pretrained(
         BASE_MODEL,
-        torch_dtype=dtype,
+        dtype=dtype,
         device_map="auto",
         trust_remote_code=True,
     )
