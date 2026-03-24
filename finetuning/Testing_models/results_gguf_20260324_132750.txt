@@ -1,0 +1,494 @@
+Model: os-ai-think (GGUF Q4_K_M via Ollama)
+Thinking: enabled (stripped from answers below)
+Timestamp: 2026-03-24T13:27:50.307530
+Questions: 44
+======================================================================
+
+[1/44] [FILES]
+Q: Find all files larger than 100MB on Linux
+
+A: ```bash
+find / -size +104857600c -type f
+```
+
+  tokens=28  tok/s=68.6  elapsed=2.5s  thinking_len=0w
+======================================================================
+
+[2/44] [FILES]
+Q: Find files modified in the last 24 hours in /var/log
+
+A: ```bash
+find /var/log -mtime -1
+```
+
+  tokens=18  tok/s=70.7  elapsed=0.4s  thinking_len=0w
+======================================================================
+
+[3/44] [FILES]
+Q: Recursively search for the string 'ERROR' in all .log files under /var
+
+A: ```bash
+find /var -name '*.log' -exec grep -Hn 'ERROR' {} +
+```
+
+  tokens=29  tok/s=69.4  elapsed=0.6s  thinking_len=0w
+======================================================================
+
+[4/44] [FILES]
+Q: What does chmod 755 do and when would you use it?
+
+A: ```bash
+chmod 755 /path/to/script.sh
+```
+Sets read, write, and execute permissions for the owner; read and execute for group and others, allowing multiple users to run scripts without granting them write access.
+
+  tokens=53  tok/s=69.0  elapsed=0.9s  thinking_len=0w
+======================================================================
+
+[5/44] [FILES]
+Q: How do I change the owner of a directory and all its contents?
+
+A: ```bash
+sudo chown -R newuser:newgroup /path/to/directory
+```
+The `-R` flag recursively changes ownership of the directory and all files and subdirectories within it to the specified user and group.
+
+  tokens=51  tok/s=68.5  elapsed=0.9s  thinking_len=0w
+======================================================================
+
+[6/44] [FILES]
+Q: How do I create a symbolic link?
+
+A: ```bash
+ln -s /path/to/file /path/to/link
+```
+Creates a symbolic link named `/path/to/link` that points to the file at `/path/to/file`.
+
+  tokens=43  tok/s=66.2  elapsed=0.8s  thinking_len=0w
+======================================================================
+
+[7/44] [NETWORKING]
+Q: List all open TCP ports on the system
+
+A: ```bash
+ss -tlnp
+```
+Displays all listening TCP sockets along with the process IDs and names of the processes that are listening on those ports.
+
+  tokens=38  tok/s=64.0  elapsed=0.8s  thinking_len=0w
+======================================================================
+
+[8/44] [NETWORKING]
+Q: Generate an SSH key pair and add it to authorized_keys
+
+A: ```bash
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 && cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys
+```
+
+  tokens=50  tok/s=64.1  elapsed=0.9s  thinking_len=0w
+======================================================================
+
+[9/44] [NETWORKING]
+Q: How do I copy a file to a remote server using SCP?
+
+A: ```bash
+scp /home/user/documents/report.txt user@remote-server:/home/user/documents/
+```
+SCP securely copies the report file from your local system to the specified directory on the remote server using SSH encryption.
+
+  tokens=49  tok/s=68.7  elapsed=0.9s  thinking_len=0w
+======================================================================
+
+[10/44] [NETWORKING]
+Q: How do I check my current IP address on Linux?
+
+A: ```bash
+ip addr show | grep 'inet ' | grep -v '127.0.0.1'
+```
+This command displays all IPv4 addresses except the loopback address, showing the IP assigned to each active network interface.
+
+  tokens=57  tok/s=65.1  elapsed=1.0s  thinking_len=0w
+======================================================================
+
+[11/44] [NETWORKING]
+Q: How do I test if a remote port is open without telnet?
+
+A: ```bash
+nc -zv 8.8.8.8 53
+```
+Uses `nc` to perform a TCP/UDP port scan on port 53 of Google's DNS server to verify connectivity without opening a full telnet session.
+
+  tokens=58  tok/s=65.5  elapsed=1.1s  thinking_len=0w
+======================================================================
+
+[12/44] [NETWORKING]
+Q: How do I block port 22 with iptables?
+
+A: ```bash
+sudo iptables -A INPUT -p tcp --dport 22 -j DROP
+```
+This rule blocks all incoming TCP traffic on port 22 (SSH) by dropping packets, preventing SSH access to your machine.
+
+  tokens=55  tok/s=65.5  elapsed=1.0s  thinking_len=0w
+======================================================================
+
+[13/44] [NETWORKING]
+Q: How do I use rsync to sync a local folder to a remote server?
+
+A: ```bash
+rsync -avz --delete /local/path/ user@remote:/remote/path/
+```
+
+  tokens=28  tok/s=66.6  elapsed=0.6s  thinking_len=0w
+======================================================================
+
+[14/44] [PROCESS]
+Q: How do I check disk usage broken down by directory?
+
+A: ```bash
+du -h --max-depth=1
+```
+Lists disk usage broken down by top-level directories in human-readable format, showing only the first level of subdirectories.
+
+  tokens=42  tok/s=65.7  elapsed=0.8s  thinking_len=0w
+======================================================================
+
+[15/44] [PROCESS]
+Q: How do I kill a process by name without knowing its PID?
+
+A: ```bash
+killall nginx
+```
+Sends the SIGTERM signal to all processes matching "nginx", terminating them one by one.
+
+  tokens=33  tok/s=66.5  elapsed=0.7s  thinking_len=0w
+======================================================================
+
+[16/44] [PROCESS]
+Q: Show me how to find which process is using the most memory
+
+A: ```bash
+ps aux --sort=-%mem | head -n 5
+```
+Sorts processes by memory usage in descending order and displays the top 5 consumers.
+
+  tokens=41  tok/s=65.8  elapsed=0.8s  thinking_len=0w
+======================================================================
+
+[17/44] [PROCESS]
+Q: How do I run a process in the background and keep it after SSH logout?
+
+A: ```bash
+nohup /usr/bin/python3 /home/admin/long_running_script.py > /home/admin/output.log 2>&1 &
+```
+`nohup` detaches the process from the terminal and ignores hangup signals, while `&` runs it in the background; output is redirected to a file so it persists after logout.
+
+  tokens=78  tok/s=67.7  elapsed=1.3s  thinking_len=0w
+======================================================================
+
+[18/44] [PROCESS]
+Q: How do I schedule a cron job to run a script every day at midnight?
+
+A: ```bash
+echo '0 0 * * * /home/user/backup.sh' | sudo tee /etc/cron.d/backup
+```
+This command adds a cron job that executes backup.sh daily at midnight.
+
+  tokens=50  tok/s=69.3  elapsed=0.9s  thinking_len=0w
+======================================================================
+
+[19/44] [PROCESS]
+Q: How do I check CPU and memory usage in real time?
+
+A: ```bash
+watch -n 1 'top -bn1 | head -n 5'
+```
+Displays CPU and memory statistics every 1 second, updating the display in real time for continuous monitoring.
+
+  tokens=48  tok/s=68.8  elapsed=0.9s  thinking_len=0w
+======================================================================
+
+[20/44] [USERS]
+Q: How do I add a user to the sudo group?
+
+A: ```bash
+sudo usermod -aG sudo username
+```
+This adds the user "username" to the sudo group, granting them the ability to run commands with elevated privileges.
+
+  tokens=42  tok/s=69.1  elapsed=0.8s  thinking_len=0w
+======================================================================
+
+[21/44] [USERS]
+Q: How do I create a new user with a home directory?
+
+A: ```bash
+useradd -m jsmith
+```
+This creates a new user 'jsmith' and automatically sets up their home directory at /home/jsmith.
+
+  tokens=39  tok/s=64.4  elapsed=0.8s  thinking_len=0w
+======================================================================
+
+[22/44] [USERS]
+Q: How do I lock a user account without deleting it?
+
+A: ```bash
+passwd -l jsmith
+```
+This locks the user account 'jsmith' without removing it, allowing password recovery but preventing login until unlocked.
+
+  tokens=38  tok/s=66.2  elapsed=0.7s  thinking_len=0w
+======================================================================
+
+[23/44] [USERS]
+Q: How do I view all groups a user belongs to?
+
+A: ```bash
+id username
+```
+This command displays the user's UID, GID, and all additional groups they are a member of.
+
+  tokens=34  tok/s=65.7  elapsed=0.7s  thinking_len=0w
+======================================================================
+
+[24/44] [PACKAGES]
+Q: How do I install a .deb package manually?
+
+A: ```bash
+dpkg -i /path/to/package.deb
+```
+This command installs a Debian package from a local .deb file, prompting for confirmation and handling dependencies automatically.
+
+  tokens=41  tok/s=65.6  elapsed=0.8s  thinking_len=0w
+======================================================================
+
+[25/44] [PACKAGES]
+Q: How do I start, stop, and restart a systemd service?
+
+A: ```bash
+systemctl start webserver && systemctl stop webserver && systemctl restart webserver
+```
+This sequence starts the webserver service, stops it, and then restarts it in one command line.
+
+  tokens=47  tok/s=65.0  elapsed=0.9s  thinking_len=0w
+======================================================================
+
+[26/44] [PACKAGES]
+Q: How do I check if a service is enabled on boot with systemd?
+
+A: ```bash
+systemctl is-enabled myservice
+```
+This command returns "enabled" if the service is configured to start automatically at boot, or "disabled" otherwise.
+
+  tokens=40  tok/s=66.7  elapsed=0.8s  thinking_len=0w
+======================================================================
+
+[27/44] [PACKAGES]
+Q: How do I find which package owns a specific file on Debian/Ubuntu?
+
+A: ```bash
+dpkg -S /path/to/file
+```
+The `dpkg -S` command searches the package database and returns the name of the package that owns the specified file.
+
+  tokens=44  tok/s=69.2  elapsed=0.8s  thinking_len=0w
+======================================================================
+
+[28/44] [TEXT]
+Q: How do I extract the 3rd column from a space-separated file using awk?
+
+A: ```bash
+awk '{print $3}' data.txt
+```
+
+  tokens=18  tok/s=70.4  elapsed=0.4s  thinking_len=0w
+======================================================================
+
+[29/44] [TEXT]
+Q: How do I replace all occurrences of 'foo' with 'bar' in a file using sed?
+
+A: ```bash
+sed 's/foo/bar/g' file.txt
+```
+This command replaces every occurrence of 'foo' with 'bar' in the entire file using the global flag.
+
+  tokens=42  tok/s=69.3  elapsed=0.8s  thinking_len=0w
+======================================================================
+
+[30/44] [TEXT]
+Q: How do I count lines, words, and characters in a file?
+
+A: ```bash
+wc /path/to/file
+```
+Displays the number of lines, words, and bytes for the specified file in a single output line.
+
+  tokens=36  tok/s=69.4  elapsed=0.7s  thinking_len=0w
+======================================================================
+
+[31/44] [TEXT]
+Q: How do I sort a file and remove duplicate lines?
+
+A: ```bash
+sort -u /home/admin/access.log
+```
+Sorts lines alphabetically and removes duplicates in a single operation.
+
+  tokens=32  tok/s=69.4  elapsed=0.6s  thinking_len=0w
+======================================================================
+
+[32/44] [STORAGE]
+Q: How do I mount a USB drive on Linux?
+
+A: ```bash
+sudo mkdir -p /media/username && sudo mount /dev/sdb1 /media/username
+```
+This command creates a mount point directory and mounts the USB drive at that location. Replace `/dev/sdb1` with your actual USB device identifier and `username` with your login name.
+
+  tokens=69  tok/s=68.2  elapsed=1.2s  thinking_len=0w
+======================================================================
+
+[33/44] [STORAGE]
+Q: How do I check available disk space on all mounted filesystems?
+
+A: ```bash
+df -h
+```
+Displays the total, used, and available space for all mounted filesystems in human-readable format.
+
+  tokens=33  tok/s=69.2  elapsed=0.6s  thinking_len=0w
+======================================================================
+
+[34/44] [STORAGE]
+Q: How do I create a compressed tar.gz archive of a directory?
+
+A: ```bash
+tar -czvf backup.tar.gz /path/to/directory
+```
+Compresses the specified directory into a gzip-compressed tar archive named backup.tar.gz.
+
+  tokens=41  tok/s=69.2  elapsed=0.8s  thinking_len=0w
+======================================================================
+
+[35/44] [STORAGE]
+Q: How do I find and delete files older than 30 days?
+
+A: ```bash
+find /home/admin -type f -mtime +30 -exec rm {} \;
+```
+Locates all regular files modified more than 30 days ago in /home/admin and deletes them using find's -exec option.
+
+  tokens=56  tok/s=68.6  elapsed=1.0s  thinking_len=0w
+======================================================================
+
+[36/44] [KERNEL]
+Q: What is a Linux kernel module and how do you load one?
+
+A: ```bash
+sudo modprobe <module_name>
+```
+This command inserts a kernel module into the running kernel, enabling new functionality or drivers without rebooting the system.
+
+  tokens=40  tok/s=68.8  elapsed=0.7s  thinking_len=0w
+======================================================================
+
+[37/44] [KERNEL]
+Q: Explain the difference between a process and a thread in Linux
+
+A: ```bash
+ps -ef | head -10
+```
+Shows all processes and threads in the system, allowing you to see which processes have associated threads using the PID and TID columns.
+
+  tokens=45  tok/s=68.7  elapsed=0.8s  thinking_len=0w
+======================================================================
+
+[38/44] [KERNEL]
+Q: How does virtual memory paging work in Linux?
+
+A: ```bash
+cat /proc/vmstat | grep -i 'pg'
+```
+This command displays virtual memory statistics including page faults and page swaps, showing how Linux handles paging when physical RAM is exhausted.
+
+  tokens=48  tok/s=68.5  elapsed=0.9s  thinking_len=0w
+======================================================================
+
+[39/44] [KERNEL]
+Q: What is the purpose of the /proc filesystem?
+
+A: ```bash
+ls /proc | head -20
+```
+The /proc filesystem exposes kernel and process information as virtual files, allowing users to inspect CPU usage, memory, open files, and network stats without reading core dumps.
+
+  tokens=52  tok/s=68.4  elapsed=0.9s  thinking_len=0w
+======================================================================
+
+[40/44] [KERNEL]
+Q: How do I check the current kernel version and build info?
+
+A: ```bash
+uname -r && uname -m && cat /proc/version
+```
+Displays the kernel release, machine architecture, and detailed build information from the kernel.
+
+  tokens=39  tok/s=69.1  elapsed=0.7s  thinking_len=0w
+======================================================================
+
+[41/44] [SCRIPTING]
+Q: Write a bash script that checks if a file exists and prints a message
+
+A: ```bash
+if [ -f "$filename" ]; then
+    echo "File exists."
+fi
+```
+This script checks if the file specified by the variable `filename` exists and prints a message confirming its existence.
+
+  tokens=51  tok/s=68.8  elapsed=0.9s  thinking_len=0w
+======================================================================
+
+[42/44] [SCRIPTING]
+Q: How do I loop over all .log files in a directory in bash?
+
+A: ```bash
+for logfile in /var/log/*.log; do cat "$logfile"; done
+```
+This loops through all .log files in the current directory, printing the contents of each one sequentially.
+
+  tokens=46  tok/s=68.4  elapsed=0.8s  thinking_len=0w
+======================================================================
+
+[43/44] [SCRIPTING]
+Q: How do I capture the output of a command into a variable in bash?
+
+A: ```bash
+result=$(ls /home/user)
+```
+This command executes `ls` and stores its output directly in the variable `result`.
+
+  tokens=35  tok/s=69.0  elapsed=0.7s  thinking_len=0w
+======================================================================
+
+[44/44] [SCRIPTING]
+Q: How do I pass arguments to a bash script and validate them?
+
+A: ```bash
+#!/bin/bash
+if [ $# -eq 0 ]; then echo "Usage: $0 <input_file> <output_file>"; exit 1; fi
+input="$1"; output="$2"
+if [ ! -f "$input" ]; then echo "Input file not found"; exit 1; fi
+cp "$input" "$output"
+```
+
+  tokens=82  tok/s=67.9  elapsed=1.4s  thinking_len=0w
+======================================================================
+
+
+SUMMARY
+  Total tokens: 1939
+  Avg speed: 67.7 tok/s
+  Total time: 0s

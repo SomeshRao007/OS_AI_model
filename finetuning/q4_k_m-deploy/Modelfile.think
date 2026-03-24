@@ -1,0 +1,30 @@
+# Ollama Modelfile for eval with thinking ENABLED
+#
+# Import:
+#   cd finetuning/q4_k_m-deploy
+#   ollama create os-ai-think -f Modelfile.think
+#
+# The model reasons in <think> blocks. eval_compare.py strips them from displayed output.
+
+FROM ./qwen3.5-4b-os-q4km.gguf
+
+PARAMETER num_ctx 1024
+PARAMETER temperature 0.6
+PARAMETER top_p 0.95
+PARAMETER top_k 20
+PARAMETER num_predict 1024
+
+PARAMETER stop "<|im_end|>"
+PARAMETER stop "<|endoftext|>"
+
+# Multi-turn ChatML template — no think prefill, model thinks freely
+TEMPLATE """{{- if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}{{- range .Messages }}{{- if eq .Role "user" }}<|im_start|>user
+{{ .Content }}<|im_end|>
+{{ end }}{{- if eq .Role "assistant" }}<|im_start|>assistant
+{{ .Content }}<|im_end|>
+{{ end }}{{ end }}<|im_start|>assistant
+"""
+
+SYSTEM """You are an AI assistant built into a Linux-based operating system. Respond with one correct command in a bash code block followed by a one-line explanation. For conceptual questions, explain in 2-4 sentences. If the request is ambiguous, ask one clarifying question. Never list alternatives. Never restate the question. Never explain individual flags."""

@@ -1,0 +1,28 @@
+{
+  "_runtime": 51965,
+  "_step": 120,
+  "_timestamp": 1773975532.054046,
+  "_wandb": {
+    "runtime": 51965
+  },
+  "eval/entropy": 0.7709886824542825,
+  "eval/loss": 0.7736324071884155,
+  "eval/mean_token_accuracy": 0.8330115994269197,
+  "eval/num_tokens": 12860877,
+  "eval/runtime": 315.712,
+  "eval/samples_per_second": 2.214,
+  "eval/steps_per_second": 0.279,
+  "total_flos": 412465752041398300,
+  "train/entropy": 0.7369740769267082,
+  "train/epoch": 3,
+  "train/global_step": 585,
+  "train/grad_norm": 0.034912109375,
+  "train/learning_rate": 1.6020741900768518e-10,
+  "train/loss": 0.7346443176269531,
+  "train/mean_token_accuracy": 0.8409270882606507,
+  "train/num_tokens": 18808356,
+  "train_loss": 0.8883908638587364,
+  "train_runtime": 51966.5743,
+  "train_samples_per_second": 0.36,
+  "train_steps_per_second": 0.011
+}
