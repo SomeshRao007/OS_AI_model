@@ -1,0 +1,38 @@
+# os_agent daemon configuration
+
+model:
+  path: "finetuning/q4_k_m-deploy/qwen3.5-4b-os-q4km.gguf"
+  n_ctx: 1024
+  n_gpu_layers: -1  # all layers on GPU
+
+generation:
+  temperature: 0.6
+  top_p: 0.95
+  top_k: 20
+  max_tokens: 1024
+  stop_tokens:
+    - "<|im_end|>"
+    - "<|endoftext|>"
+
+shell:
+  name: "neurosh"
+  default_mode: "direct"  # "direct" or "ai"
+  ai_prefix: "?"          # prefix to trigger AI from direct mode
+  direct_prefix: "!"      # prefix to force direct from AI mode
+
+memory:
+  state_dir: "~/.local/share/ai-daemon"
+  faiss_dims: 384  # all-MiniLM-L6-v2 embedding size
+  max_vectors_per_domain: 500
+
+sandbox:
+  enabled: true
+  timeout_seconds: 30
+
+agents:
+  domains:
+    - files
+    - network
+    - process
+    - packages
+    - kernel

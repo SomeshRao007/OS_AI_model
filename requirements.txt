@@ -1,0 +1,6 @@
+# OS Agent dependencies
+# Install: pip install -r requirements.txt
+# For CUDA: CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python
+
+llama-cpp-python>=0.3.18
+pyyaml>=6.0
