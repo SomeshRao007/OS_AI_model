@@ -7,8 +7,10 @@ Three modes: terminal (bash), chatbot (Q&A), ai (co-pilot).
 
 from __future__ import annotations
 
+import difflib
 import logging
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -233,8 +235,21 @@ class NeuroshShell:
             # Risk classification
             risk = self._executor.classify_risk(command)
             in_domain = self._executor.check_domain_allowed(command, domain)
+            vague = self._is_vague_query(raw)
 
-            if risk == RiskLevel.SAFE and in_domain:
+            if vague:
+                # Vague query — show model's interpretation, force confirmation
+                explanation = self._extract_explanation(full_response)
+                if explanation:
+                    print(explanation)
+                self._renderer.print_risk_badge(risk, command)
+                confirm = input("Proceed? [y/N] ").strip().lower()
+                if confirm != "y":
+                    self._renderer.print_info("Skipped.")
+                    self._update_memory(raw, domain, agent, full_response)
+                    self._history.add_ai(raw, domain, command)
+                    return
+            elif risk == RiskLevel.SAFE and in_domain:
                 # Tier 1: safe + in-domain → auto-execute
                 self._renderer.print_info(f"Auto-executing: {command}")
             elif not in_domain:
@@ -309,11 +324,53 @@ class NeuroshShell:
 
         target = os.path.expandvars(os.path.expanduser(target))
         if not os.path.isdir(target):
-            self._renderer.print_error(f"cd: no such directory: {target}")
-            return
+            # Fuzzy match: find closest directory name in CWD
+            match = self._fuzzy_find_dir(target)
+            if match:
+                self._renderer.print_info(f"cd: '{target}' not found, using '{match}'")
+                target = match
+            else:
+                self._renderer.print_error(f"cd: no such directory: {target}")
+                return
 
         os.environ["OLDPWD"] = os.getcwd()
         os.chdir(target)
+
+    @staticmethod
+    def _is_vague_query(raw: str) -> bool:
+        """Detect queries too vague to auto-execute (e.g., 'show', 'check', 'info').
+
+        A query is vague when it's very short and lacks a clear object/target.
+        'show' is vague, 'show disk space' is not. 'check' is vague, 'check cpu' is not.
+        """
+        words = raw.strip().split()
+        return len(words) <= 2 and len(raw.strip()) <= 12
+
+    @staticmethod
+    def _extract_explanation(response: str) -> str | None:
+        """Extract the text explanation from a model response (strip code blocks)."""
+        # Remove code blocks, keep the explanation text
+        cleaned = re.sub(r"```(?:bash|sh|shell)?\n.*?```", "", response, flags=re.DOTALL)
+        cleaned = cleaned.strip()
+        return cleaned if cleaned else None
+
+    @staticmethod
+    def _fuzzy_find_dir(target: str) -> str | None:
+        """Find the closest matching subdirectory name in CWD."""
+        basename = os.path.basename(target)
+        search_dir = os.path.dirname(target) or "."
+
+        if not os.path.isdir(search_dir):
+            return None
+
+        dirs = [
+            d for d in os.listdir(search_dir)
+            if os.path.isdir(os.path.join(search_dir, d)) and not d.startswith(".")
+        ]
+        matches = difflib.get_close_matches(basename, dirs, n=1, cutoff=0.5)
+        if matches:
+            return os.path.join(search_dir, matches[0]) if search_dir != "." else matches[0]
+        return None
 
     def _summarize_output(self, query: str, domain: str, agent, stdout: str) -> None:
         """For long outputs (>50 lines), ask the agent to summarize."""
