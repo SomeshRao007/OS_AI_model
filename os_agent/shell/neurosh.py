@@ -209,30 +209,45 @@ class NeuroshShell:
                 self._renderer.print_info("(cancelled)")
                 return
 
+            # Handle empty model response
+            if not full_response or not full_response.strip():
+                self._renderer.print_info("(no response from model)")
+                return
+
             # Extract command from model response
             command = extract_command(full_response)
             if not command:
-                # Pure text response (conceptual answer) — print it cleanly
+                # Pure text response (conceptual answer) — print it
                 print(full_response.strip())
                 self._update_memory(raw, domain, agent, full_response)
                 self._history.add_ai(raw, domain)
                 return
 
-            # Domain whitelist check
-            if not self._executor.check_domain_allowed(command, domain):
-                self._renderer.print_error(
-                    f"Blocked: {domain} agent cannot run: {command}"
-                )
+            # Handle cd in extracted commands (model said "cd .." for "go back")
+            if self._is_cd_command(command):
+                self._handle_cd(command)
                 self._update_memory(raw, domain, agent, full_response)
                 self._history.add_ai(raw, domain, command)
                 return
 
-            # Risk classification and confirmation
+            # Risk classification
             risk = self._executor.classify_risk(command)
+            in_domain = self._executor.check_domain_allowed(command, domain)
 
-            if risk == RiskLevel.SAFE:
+            if risk == RiskLevel.SAFE and in_domain:
+                # Tier 1: safe + in-domain → auto-execute
                 self._renderer.print_info(f"Auto-executing: {command}")
+            elif not in_domain:
+                # Out-of-domain → y/n with domain warning
+                self._renderer.print_out_of_domain(domain, command, risk)
+                confirm = input("Proceed? [y/N] ").strip().lower()
+                if confirm != "y":
+                    self._renderer.print_info("Skipped.")
+                    self._update_memory(raw, domain, agent, full_response)
+                    self._history.add_ai(raw, domain, command)
+                    return
             else:
+                # Tier 2/3: in-domain but moderate/dangerous → y/n
                 self._renderer.print_risk_badge(risk, command)
                 confirm = input("Proceed? [y/N] ").strip().lower()
                 if confirm != "y":
@@ -241,7 +256,7 @@ class NeuroshShell:
                     self._history.add_ai(raw, domain, command)
                     return
 
-            # Execute in sandbox
+            # Execute
             result = self._executor.run(command, domain=domain)
             self._renderer.print_execution_output(
                 result.stdout, result.stderr, result.exit_code, result.timed_out

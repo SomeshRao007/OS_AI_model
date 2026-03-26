@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from os_agent.tools.registry import (
     DANGEROUS_PATTERNS,
     SAFE_COMMANDS,
+    classify_git_risk,
     extract_base_commands,
     is_command_allowed,
 )
@@ -76,16 +77,18 @@ class SandboxedExecutor:
         """Classify a command as safe, moderate, or dangerous.
 
         Order: dangerous patterns first (regex on full string),
-        then safe check (all base commands in safe set),
-        else moderate.
+        then git subcommand check, then safe set, else moderate.
         """
-        # 1. Dangerous pattern match on the full command string
         for pattern, _reason in DANGEROUS_PATTERNS:
             if pattern.search(command):
                 return RiskLevel.DANGEROUS
 
-        # 2. All base commands must be in the safe set
         base_cmds = extract_base_commands(command)
+
+        # Git commands: safety depends on subcommand (status=safe, push=moderate)
+        if base_cmds and base_cmds[0] == "git":
+            return classify_git_risk(command)
+
         if base_cmds and all(cmd in SAFE_COMMANDS for cmd in base_cmds):
             return RiskLevel.SAFE
 

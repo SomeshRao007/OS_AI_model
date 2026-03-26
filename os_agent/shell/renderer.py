@@ -112,6 +112,21 @@ class Renderer:
             style=NEUROSH_STYLE,
         )
 
+    def print_out_of_domain(self, domain: str, command: str, risk: str) -> None:
+        """Display an out-of-domain command warning with y/n prompt."""
+        tag = f"risk-{risk}"
+        label = risk.upper()
+        if risk == "dangerous":
+            label = "WARNING: DANGEROUS"
+        print_formatted_text(
+            HTML(
+                f"<{tag}>[{label}]</{tag}> "
+                f"<info>(outside {domain} domain)</info> "
+                f"Execute: {_escape(command)}"
+            ),
+            style=NEUROSH_STYLE,
+        )
+
     def print_execution_output(
         self, stdout: str, stderr: str, exit_code: int, timed_out: bool
     ) -> None:
