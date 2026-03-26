@@ -154,7 +154,6 @@ class NeuroshShell:
         try:
             domain = self._master.classify(query)
             agent = self._master.get_agent(domain)
-            self._renderer.print_domain_badge(domain)
 
             prompt = agent.augmented_prompt(query)
 
@@ -199,31 +198,22 @@ class NeuroshShell:
             # Route through agent framework
             domain = self._master.classify(raw)
             agent = self._master.get_agent(domain)
-            self._renderer.print_domain_badge(domain)
 
             env_ctx = self._env_context.full_context()
             prompt = agent.augmented_prompt_with_context(raw, env_ctx)
 
-            # Stream response
-            tokens: list[str] = []
+            # Collect response silently (don't stream raw markdown to terminal)
             try:
-                for token in self._engine.infer_streaming(prompt, raw):
-                    sys.stdout.write(token)
-                    sys.stdout.flush()
-                    tokens.append(token)
+                full_response = self._engine.infer(prompt, raw)
             except KeyboardInterrupt:
-                self._renderer.print_info("\n(cancelled)")
+                self._renderer.print_info("(cancelled)")
                 return
-            finally:
-                sys.stdout.write("\n")
-                sys.stdout.flush()
-
-            full_response = "".join(tokens)
 
             # Extract command from model response
             command = extract_command(full_response)
             if not command:
-                # Pure text response (conceptual answer), done
+                # Pure text response (conceptual answer) — print it cleanly
+                print(full_response.strip())
                 self._update_memory(raw, domain, agent, full_response)
                 self._history.add_ai(raw, domain)
                 return

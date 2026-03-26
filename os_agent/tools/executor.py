@@ -126,9 +126,9 @@ class SandboxedExecutor:
             "--die-with-parent",
         ]
 
-        # Network isolation for non-network domains
-        if domain not in _NETWORK_DOMAINS:
-            args.append("--unshare-net")
+        # --unshare-net requires CAP_NET_ADMIN (root) — skip for unprivileged users
+        # Network isolation can be re-enabled when running as a systemd service
+        # with the appropriate capabilities.
 
         args.extend(["--", "/bin/bash", "-c", command])
         return args
