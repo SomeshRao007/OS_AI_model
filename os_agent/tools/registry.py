@@ -10,30 +10,39 @@ from __future__ import annotations
 import re
 import shlex
 
+# ── Universal commands allowed in ALL domains ─────────────────────────────
+# Shell builtins and basic utilities every agent may need.
+
+_UNIVERSAL_COMMANDS: frozenset[str] = frozenset({
+    "pwd", "echo", "cat", "head", "tail", "wc", "grep", "sort", "uniq",
+    "which", "type", "whoami", "id", "hostname", "date", "printenv",
+    "env", "true", "false", "test",
+})
+
 # ── Domain whitelists ─────────────────────────────────────────────────────
 
 DOMAIN_WHITELIST: dict[str, frozenset[str]] = {
-    "files": frozenset({
-        "find", "ls", "stat", "du", "df", "cat", "head", "tail",
+    "files": _UNIVERSAL_COMMANDS | frozenset({
+        "find", "ls", "stat", "du", "df",
         "cp", "mv", "mkdir", "chmod", "chown", "ln", "tar", "gzip",
-        "rm", "rmdir", "touch", "wc", "grep", "sort", "awk", "sed",
-        "uniq", "file", "diff", "tree", "realpath", "basename", "dirname",
+        "rm", "rmdir", "touch", "awk", "sed",
+        "file", "diff", "tree", "realpath", "basename", "dirname",
     }),
-    "network": frozenset({
+    "network": _UNIVERSAL_COMMANDS | frozenset({
         "ip", "ss", "ping", "traceroute", "nslookup", "dig", "curl",
         "wget", "nc", "iptables", "nft", "ssh", "scp", "rsync",
         "netstat", "host", "whois",
     }),
-    "process": frozenset({
+    "process": _UNIVERSAL_COMMANDS | frozenset({
         "ps", "top", "kill", "killall", "nice", "renice", "systemctl",
         "journalctl", "crontab", "htop", "free", "uptime", "nohup",
         "pkill", "pgrep", "lsof", "strace",
     }),
-    "packages": frozenset({
+    "packages": _UNIVERSAL_COMMANDS | frozenset({
         "apt", "dpkg", "snap", "flatpak", "pip", "npm", "apt-get",
         "apt-cache", "pip3",
     }),
-    "kernel": frozenset({
+    "kernel": _UNIVERSAL_COMMANDS | frozenset({
         "uname", "lsmod", "modprobe", "dmesg", "sysctl", "lspci",
         "lsusb", "lsblk", "modinfo", "lscpu",
     }),
@@ -49,6 +58,7 @@ SAFE_COMMANDS: frozenset[str] = frozenset({
     "hostname", "date", "journalctl", "modinfo", "lscpu", "pgrep",
     "host", "whois", "tree", "realpath", "basename", "dirname",
     "printenv", "env", "which", "type", "netstat", "diff",
+    "pwd", "echo", "true", "false", "test",
 })
 
 # ── Dangerous patterns (regex on full command string) ─────────────────────

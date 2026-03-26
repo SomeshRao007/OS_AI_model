@@ -46,15 +46,31 @@ class SandboxedExecutor:
 
     def __init__(self, config: dict | None = None) -> None:
         config = config or {}
-        self._enabled = config.get("enabled", True)
         self._timeout = config.get("timeout_seconds", 30)
         self._bwrap_path = shutil.which("bwrap")
+        self._enabled = config.get("enabled", True) and self._bwrap_works()
 
-        if self._enabled and not self._bwrap_path:
-            raise RuntimeError(
-                "bubblewrap (bwrap) not found. Install it:\n"
-                "  sudo apt install bubblewrap"
-            )
+    def _bwrap_works(self) -> bool:
+        """Test if bwrap can actually create sandboxes in this environment.
+
+        Environments like VS Code terminals or restrictive AppArmor policies
+        can block user namespace creation even when bwrap is installed.
+        """
+        if not self._bwrap_path:
+            _log.warning("bwrap not installed — running commands without sandbox")
+            return False
+
+        probe = subprocess.run(
+            [self._bwrap_path, "--bind", "/", "/", "--dev", "/dev",
+             "--proc", "/proc", "--die-with-parent",
+             "--", "/bin/true"],
+            capture_output=True, timeout=5,
+        )
+        if probe.returncode != 0:
+            stderr = probe.stderr.decode(errors="replace").strip()
+            _log.warning("bwrap sandbox unavailable (%s) — running commands directly", stderr)
+            return False
+        return True
 
     def classify_risk(self, command: str) -> str:
         """Classify a command as safe, moderate, or dangerous.
