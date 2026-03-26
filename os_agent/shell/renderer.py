@@ -19,8 +19,16 @@ NEUROSH_STYLE = Style.from_dict(
         "error": "#e06c75",
         "success": "#98c379",
         "title": "bold",
+        "risk-safe": "#98c379",
+        "risk-moderate": "#e5c07b bold",
+        "risk-dangerous": "#e06c75 bold",
     }
 )
+
+def _escape(text: str) -> str:
+    """Escape text for prompt_toolkit HTML output."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
 
 _DOMAIN_TAGS = {
     "files": "domain-files",
@@ -66,7 +74,8 @@ class Renderer:
             HTML(
                 '<info>Type </info><title>/help</title>'
                 '<info> for commands. </info>'
-                '<title>?</title><info> prefix for chatbot queries.</info>'
+                '<title>?</title><info> prefix for chatbot. </info>'
+                '<title>/ai</title><info> for co-pilot mode.</info>'
             ),
             style=NEUROSH_STYLE,
         )
@@ -78,6 +87,7 @@ class Renderer:
             "",
             "  <title>/chatbot</title>   Switch to chatbot mode",
             "  <title>/terminal</title>  Switch to terminal (bash) mode",
+            "  <title>/ai</title>        Switch to AI co-pilot mode",
             "  <title>/history</title>   Show command history",
             "  <title>/memory</title>    Show agent memory stats",
             "  <title>/agents</title>    Show active agents",
@@ -90,6 +100,30 @@ class Renderer:
         ]
         for line in lines:
             print_formatted_text(HTML(line), style=NEUROSH_STYLE)
+
+    def print_risk_badge(self, risk: str, command: str) -> None:
+        """Display a risk-classified command with color-coded badge."""
+        tag = f"risk-{risk}"
+        label = risk.upper()
+        if risk == "dangerous":
+            label = "WARNING: DANGEROUS"
+        print_formatted_text(
+            HTML(f"<{tag}>[{label}]</{tag}> Execute: {_escape(command)}"),
+            style=NEUROSH_STYLE,
+        )
+
+    def print_execution_output(
+        self, stdout: str, stderr: str, exit_code: int, timed_out: bool
+    ) -> None:
+        """Display command execution results."""
+        if stdout:
+            print(stdout, end="" if stdout.endswith("\n") else "\n")
+        if stderr:
+            self.print_error(stderr.rstrip())
+        if timed_out:
+            self.print_error("(timed out)")
+        elif exit_code != 0:
+            self.print_error(f"(exit code: {exit_code})")
 
     def print_meta_response(self, title: str, body: str) -> None:
         print_formatted_text(HTML(f"<title>{title}</title>"), style=NEUROSH_STYLE)

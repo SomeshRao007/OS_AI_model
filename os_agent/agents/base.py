@@ -18,14 +18,16 @@ _MAX_HIT_CHARS = 200
 class AgentResponse:
     """Immutable response from a domain specialist.
 
-    Future steps will add fields:
-      - Step 7: action_type (safe/moderate/dangerous), command (extracted)
-      - Step 8: needs_confirmation (for desktop notification flow)
+    action_type and command are populated by the AI mode handler after
+    extracting commands from the response text and classifying risk.
+    Future: Step 8 adds needs_confirmation for desktop notification flow.
     """
 
     domain: str
     response: str
     memory_hits: list[str] = field(default_factory=list)
+    action_type: str | None = None
+    command: str | None = None
 
 
 class BaseAgent(ABC):
@@ -71,6 +73,11 @@ class BaseAgent(ABC):
     def augmented_prompt(self, query: str) -> str:
         """Public accessor for the memory-augmented system prompt."""
         return self._augmented_prompt(query)
+
+    def augmented_prompt_with_context(self, query: str, env_context: str) -> str:
+        """Memory-augmented prompt with environment context for AI mode."""
+        base = self._augmented_prompt(query)
+        return f"{base}\n\nEnvironment:\n{env_context}"
 
     @abstractmethod
     def handle(self, query: str, engine: InferenceEngine) -> AgentResponse:

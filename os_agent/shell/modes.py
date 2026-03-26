@@ -1,6 +1,7 @@
 """Mode switching logic for neurosh shell.
 
-Two modes: terminal (commands → bash) and chatbot (queries → master agent).
+Three modes: terminal (commands → bash), chatbot (queries → master agent),
+and ai (co-pilot: context-aware agent + command execution).
 Handles ?, !, and / prefix routing.
 """
 
@@ -10,6 +11,7 @@ from __future__ import annotations
 class ShellMode:
     TERMINAL = "terminal"
     CHATBOT = "chatbot"
+    AI = "ai"
 
 
 class ModeManager:
@@ -35,15 +37,22 @@ class ModeManager:
     def switch_to_terminal(self) -> None:
         self._mode = ShellMode.TERMINAL
 
+    def switch_to_ai(self) -> None:
+        self._mode = ShellMode.AI
+
     def classify_input(self, raw: str) -> tuple[str, str]:
         """Determine effective mode and clean the input.
 
         Returns:
             (effective_mode, cleaned_input) where effective_mode is
-            "terminal", "chatbot", or "meta".
+            "terminal", "chatbot", "ai", or "meta".
         """
         if raw.startswith("/"):
             return "meta", raw
+
+        # In AI mode, all input goes to the AI handler (no prefix routing)
+        if self._mode == ShellMode.AI:
+            return ShellMode.AI, raw
 
         # ? prefix forces chatbot from terminal mode
         if raw.startswith(self._chatbot_prefix) and self._mode == ShellMode.TERMINAL:
@@ -59,4 +68,6 @@ class ModeManager:
         """Plain-text prompt string for the current mode."""
         if self._mode == ShellMode.CHATBOT:
             return "neurosh[chatbot]> "
+        if self._mode == ShellMode.AI:
+            return "neurosh[ai]> "
         return "neurosh> "

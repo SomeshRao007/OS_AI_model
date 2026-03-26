@@ -1,12 +1,14 @@
 """neurosh — Neural OS Shell.
 
 Main REPL loop integrating the inference engine, agent framework,
-and memory system into an interactive shell experience.
+memory system, and sandboxed execution into an interactive shell.
+Three modes: terminal (bash), chatbot (Q&A), ai (co-pilot).
 """
 
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -18,10 +20,13 @@ from prompt_toolkit.history import FileHistory
 
 from os_agent.inference.engine import InferenceEngine
 from os_agent.agents.master import MasterAgent
-from os_agent.shell.completer import create_completer
+from os_agent.shell.completer import create_completer, COMMON_COMMANDS
+from os_agent.shell.context import EnvironmentContext
 from os_agent.shell.history import ShellHistory
 from os_agent.shell.modes import ModeManager, ShellMode
 from os_agent.shell.renderer import Renderer, NEUROSH_STYLE
+from os_agent.tools.executor import SandboxedExecutor, RiskLevel
+from os_agent.tools.parser import extract_command
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _CONFIG_PATH = _PROJECT_ROOT / "os_agent" / "config" / "daemon.yaml"
@@ -29,9 +34,22 @@ _HISTORY_FILE = Path.home() / ".neurosh_history"
 
 _log = logging.getLogger("neurosh")
 
+# Known command names for bash detection in AI mode
+_BASH_STARTERS: frozenset[str] = frozenset(
+    COMMON_COMMANDS
+    + [
+        "git", "docker", "python", "python3", "pip", "npm", "node",
+        "htop", "free", "uptime", "whoami", "id", "date", "which",
+        "dpkg", "snap", "flatpak", "lsblk", "lsmod", "modprobe",
+        "nslookup", "dig", "traceroute", "nc", "nft", "iptables",
+        "less", "more", "vi", "vim", "nano", "clear", "history",
+        "env", "export", "printenv", "mount", "umount", "lscpu",
+    ]
+)
+
 
 class NeuroshShell:
-    """Interactive AI-powered shell with terminal and chatbot modes."""
+    """Interactive AI-powered shell with terminal, chatbot, and AI modes."""
 
     def __init__(self) -> None:
         config = self._load_config()
@@ -57,6 +75,9 @@ class NeuroshShell:
             ),
         )
 
+        self._env_context = EnvironmentContext()
+        self._executor = SandboxedExecutor(config.get("sandbox", {}))
+
         vram = self._engine.get_vram_usage()
         self._renderer.print_welcome(vram)
 
@@ -80,6 +101,8 @@ class NeuroshShell:
                     break
             elif effective_mode == ShellMode.CHATBOT:
                 self._handle_chatbot(cleaned)
+            elif effective_mode == ShellMode.AI:
+                self._handle_ai(cleaned)
             else:
                 self._handle_terminal(cleaned)
 
@@ -98,8 +121,17 @@ class NeuroshShell:
                 return None
 
     def _build_prompt(self) -> HTML:
-        if self._mode_mgr.mode == ShellMode.CHATBOT:
+        mode = self._mode_mgr.mode
+        if mode == ShellMode.CHATBOT:
             return HTML("<b>neurosh</b><style fg='#e5c07b'>[chatbot]</style>&gt; ")
+        if mode == ShellMode.AI:
+            cwd = os.getcwd()
+            # Shorten home dir to ~
+            home = str(Path.home())
+            display_path = cwd.replace(home, "~", 1) if cwd.startswith(home) else cwd
+            return HTML(
+                f"<b>neurosh</b><style fg='#61afef'>[ai:{display_path}]</style>&gt; "
+            )
         return HTML("<b>neurosh</b>&gt; ")
 
     # ── Terminal mode ────────────────────────────────────────────────────
@@ -124,14 +156,8 @@ class NeuroshShell:
             agent = self._master.get_agent(domain)
             self._renderer.print_domain_badge(domain)
 
-            # Search FAISS memory for similar past solutions
-            hits = []
-            if agent._memory:
-                hits = agent._memory.search(query, top_k=3)
-
             prompt = agent.augmented_prompt(query)
 
-            # Stream tokens to terminal
             tokens: list[str] = []
             try:
                 for token in self._engine.infer_streaming(prompt, query):
@@ -146,14 +172,7 @@ class NeuroshShell:
                 sys.stdout.flush()
 
             full_response = "".join(tokens)
-
-            # Update memory tiers (mirrors MasterAgent.route() logic)
-            if agent._memory and full_response:
-                agent._memory.store(query, full_response)
-            hit_texts = [h.response for h in hits]
-            self._master.session.add_turn(query, domain, full_response, hit_texts)
-            self._master.shared_state.log_action(domain, query, full_response[:100])
-
+            self._update_memory(query, domain, agent, full_response)
             self._history.add_chatbot(query, domain)
 
         except KeyboardInterrupt:
@@ -161,6 +180,163 @@ class NeuroshShell:
         except Exception:
             _log.exception("Chatbot query failed: %s", query)
             self._renderer.print_error("Something went wrong processing your query.")
+
+    # ── AI co-pilot mode ─────────────────────────────────────────────────
+
+    def _handle_ai(self, raw: str) -> None:
+        """AI co-pilot: bash detection, agent routing, sandboxed execution."""
+        try:
+            # cd is a shell built-in — must change the parent process CWD
+            if self._is_cd_command(raw):
+                self._handle_cd(raw)
+                return
+
+            # Direct bash command detection
+            if self._looks_like_bash(raw):
+                self._handle_terminal(raw)
+                return
+
+            # Route through agent framework
+            domain = self._master.classify(raw)
+            agent = self._master.get_agent(domain)
+            self._renderer.print_domain_badge(domain)
+
+            env_ctx = self._env_context.full_context()
+            prompt = agent.augmented_prompt_with_context(raw, env_ctx)
+
+            # Stream response
+            tokens: list[str] = []
+            try:
+                for token in self._engine.infer_streaming(prompt, raw):
+                    sys.stdout.write(token)
+                    sys.stdout.flush()
+                    tokens.append(token)
+            except KeyboardInterrupt:
+                self._renderer.print_info("\n(cancelled)")
+                return
+            finally:
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+
+            full_response = "".join(tokens)
+
+            # Extract command from model response
+            command = extract_command(full_response)
+            if not command:
+                # Pure text response (conceptual answer), done
+                self._update_memory(raw, domain, agent, full_response)
+                self._history.add_ai(raw, domain)
+                return
+
+            # Domain whitelist check
+            if not self._executor.check_domain_allowed(command, domain):
+                self._renderer.print_error(
+                    f"Blocked: {domain} agent cannot run: {command}"
+                )
+                self._update_memory(raw, domain, agent, full_response)
+                self._history.add_ai(raw, domain, command)
+                return
+
+            # Risk classification and confirmation
+            risk = self._executor.classify_risk(command)
+
+            if risk == RiskLevel.SAFE:
+                self._renderer.print_info(f"Auto-executing: {command}")
+            else:
+                self._renderer.print_risk_badge(risk, command)
+                confirm = input("Proceed? [y/N] ").strip().lower()
+                if confirm != "y":
+                    self._renderer.print_info("Skipped.")
+                    self._update_memory(raw, domain, agent, full_response)
+                    self._history.add_ai(raw, domain, command)
+                    return
+
+            # Execute in sandbox
+            result = self._executor.run(command, domain=domain)
+            self._renderer.print_execution_output(
+                result.stdout, result.stderr, result.exit_code, result.timed_out
+            )
+
+            # Summarize long output
+            if (
+                result.exit_code == 0
+                and result.stdout
+                and len(result.stdout.splitlines()) > 50
+            ):
+                self._summarize_output(raw, domain, agent, result.stdout)
+
+            self._update_memory(raw, domain, agent, full_response)
+            self._history.add_ai(raw, domain, command)
+
+        except KeyboardInterrupt:
+            self._renderer.print_info("(cancelled)")
+        except Exception:
+            _log.exception("AI mode failed: %s", raw)
+            self._renderer.print_error("Something went wrong processing your query.")
+
+    def _looks_like_bash(self, raw: str) -> bool:
+        """Heuristic: does the input start with a known command name?"""
+        parts = raw.split()
+        if not parts:
+            return False
+        first = parts[0]
+        # Strip path prefix (e.g., /usr/bin/ls -> ls)
+        basename = first.split("/")[-1]
+        return basename in _BASH_STARTERS
+
+    @staticmethod
+    def _is_cd_command(raw: str) -> bool:
+        stripped = raw.strip()
+        return stripped == "cd" or stripped.startswith("cd ")
+
+    def _handle_cd(self, raw: str) -> None:
+        """Handle cd as a shell built-in (changes parent process CWD)."""
+        parts = raw.strip().split(maxsplit=1)
+        target = parts[1] if len(parts) > 1 else "~"
+
+        # Handle cd - (previous directory not tracked, just go home)
+        if target == "-":
+            prev = os.environ.get("OLDPWD", str(Path.home()))
+            os.environ["OLDPWD"] = os.getcwd()
+            os.chdir(prev)
+            self._renderer.print_info(os.getcwd())
+            return
+
+        target = os.path.expandvars(os.path.expanduser(target))
+        if not os.path.isdir(target):
+            self._renderer.print_error(f"cd: no such directory: {target}")
+            return
+
+        os.environ["OLDPWD"] = os.getcwd()
+        os.chdir(target)
+
+    def _summarize_output(self, query: str, domain: str, agent, stdout: str) -> None:
+        """For long outputs (>50 lines), ask the agent to summarize."""
+        # Truncate to fit context window (~300 tokens = ~1200 chars)
+        truncated = stdout[:1200]
+        summary_query = f"Summarize this output for '{query}':\n{truncated}"
+        env_ctx = self._env_context.cwd_context()
+        prompt = agent.augmented_prompt_with_context(summary_query, env_ctx)
+
+        self._renderer.print_info("[AI Summary]")
+        try:
+            for token in self._engine.infer_streaming(prompt, summary_query):
+                sys.stdout.write(token)
+                sys.stdout.flush()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+
+    # ── Shared helpers ───────────────────────────────────────────────────
+
+    def _update_memory(self, query: str, domain: str, agent, response: str) -> None:
+        """Update all memory tiers after an agent response."""
+        if agent._memory and response:
+            agent._memory.store(query, response)
+        self._master.session.add_turn(query, domain, response, [])
+        self._master.shared_state.log_action(domain, query, response[:100])
 
     # ── Meta commands ────────────────────────────────────────────────────
 
@@ -172,6 +348,7 @@ class NeuroshShell:
         handlers = {
             "/chatbot": self._cmd_chatbot,
             "/terminal": self._cmd_terminal,
+            "/ai": self._cmd_ai,
             "/history": self._cmd_history,
             "/memory": self._cmd_memory,
             "/agents": self._cmd_agents,
@@ -196,6 +373,11 @@ class NeuroshShell:
     def _cmd_terminal(self) -> bool:
         self._mode_mgr.switch_to_terminal()
         self._renderer.print_info("Switched to terminal mode.")
+        return False
+
+    def _cmd_ai(self) -> bool:
+        self._mode_mgr.switch_to_ai()
+        self._renderer.print_info("Switched to AI co-pilot mode.")
         return False
 
     def _cmd_history(self) -> bool:

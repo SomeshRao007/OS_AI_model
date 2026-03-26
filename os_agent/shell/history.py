@@ -32,6 +32,10 @@ class ShellHistory:
     def add_chatbot(self, query: str, domain: str) -> None:
         self._append(HistoryEntry(command=query, mode="chatbot", domain=domain))
 
+    def add_ai(self, query: str, domain: str, command: str | None = None) -> None:
+        display = f"{query} → {command}" if command else query
+        self._append(HistoryEntry(command=display, mode="ai", domain=domain))
+
     def recent(self, n: int = 20) -> list[HistoryEntry]:
         return self._entries[-n:]
 
@@ -46,6 +50,9 @@ class ShellHistory:
             if e.mode == "terminal":
                 status = f"exit={e.exit_code}" if e.exit_code is not None else ""
                 lines.append(f"  {ts}  [TERMINAL]  {e.command}  {status}")
+            elif e.mode == "ai":
+                domain_tag = f"[AI:{e.domain.upper()}]" if e.domain else "[AI]"
+                lines.append(f"  {ts}  {domain_tag:12s}  {e.command}")
             else:
                 domain_tag = f"[{e.domain.upper()}]" if e.domain else "[CHATBOT]"
                 lines.append(f"  {ts}  {domain_tag:12s}  {e.command}")
