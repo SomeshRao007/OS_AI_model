@@ -1,0 +1,26 @@
+<frozen runpy>:128: RuntimeWarning: 'os_agent.memory.agent_memory' found in sys.modules after import of package 'os_agent.memory', but prior to execution of 'os_agent.memory.agent_memory'; this may result in unpredictable behaviour
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== AgentMemory Persistence Test ===
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 12195.50it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+[3mNotes:
+- UNEXPECTED[3m	:can be ignored when loading from different task/architecture; not ok if you expect identical arch.[0m
+  Stored 1 solution (index has 1 vectors)
+  Reloaded index (1 vectors)
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10900.34it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+[3mNotes:
+- UNEXPECTED[3m	:can be ignored when loading from different task/architecture; not ok if you expect identical arch.[0m
+  Search returned 1 hit(s)
+  Best hit: 'find / -size +100M'
+  Match: PASS
+  Cosine similarity: 0.8984 (PASS)
+=== Done ===

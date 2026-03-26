@@ -1,0 +1,82 @@
+<frozen runpy>:128: RuntimeWarning: 'os_agent.agents.master' found in sys.modules after import of package 'os_agent.agents', but prior to execution of 'os_agent.agents.master'; this may result in unpredictable behaviour
+llama_context: n_ctx_seq (1024) < n_ctx_train (262144) -- the full capacity of the model will not be utilized
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading inference engine...
+Engine loaded.
+
+======================================================================
+TEST 4: End-to-end routing + response
+======================================================================
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 18763.61it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+[3mNotes:
+- UNEXPECTED[3m	:can be ignored when loading from different task/architecture; not ok if you expect identical arch.[0m
+
+  [OK] [FILES] Find all files larger than 100MB on Linux
+  --------------------------------------------------
+  ```bash
+find / -size +100M -type f
+```
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 15741.63it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+[3mNotes:
+- UNEXPECTED[3m	:can be ignored when loading from different task/architecture; not ok if you expect identical arch.[0m
+
+  [OK] [NETWORK] List all open TCP ports on the system
+  --------------------------------------------------
+  ```bash
+sudo ss -tlnp
+```
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 14764.64it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+[3mNotes:
+- UNEXPECTED[3m	:can be ignored when loading from different task/architecture; not ok if you expect identical arch.[0m
+
+  [OK] [PROCESS] How do I kill a process by name without knowing its PID?
+  --------------------------------------------------
+  ```bash
+pkill -f nginx
+```
+Kills all processes matching the pattern "nginx" without needing to know their PIDs.
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 13096.07it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+[3mNotes:
+- UNEXPECTED[3m	:can be ignored when loading from different task/architecture; not ok if you expect identical arch.[0m
+
+  [OK] [PACKAGES] How do I install a .deb package manually?
+  --------------------------------------------------
+  ```bash
+sudo dpkg -i /path/to/package.deb
+```
+Installs a local .deb package by reading its control files and extracting contents to the system's package structure.
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9113.44it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+[3mNotes:
+- UNEXPECTED[3m	:can be ignored when loading from different task/architecture; not ok if you expect identical arch.[0m
+
+  [OK] [KERNEL] What is a Linux kernel module and how do you load one?
+  --------------------------------------------------
+  ```bash
+sudo modprobe <module_name>
+```
+Loads a kernel module dynamically into the running kernel, enabling additional functionality without rebooting the system.

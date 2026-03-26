@@ -1,0 +1,9 @@
+<frozen runpy>:128: RuntimeWarning: 'os_agent.memory.session' found in sys.modules after import of package 'os_agent.memory', but prior to execution of 'os_agent.memory.session'; this may result in unpredictable behaviour
+=== SessionContext Test ===
+  Turn cap:      PASS (count=5)
+  Oldest turn:   PASS (got='query_2')
+  Context str:   PASS
+  Metadata:      PASS (got='/home')
+  Clear:         PASS
+  Empty ctx:     PASS
+=== Done ===

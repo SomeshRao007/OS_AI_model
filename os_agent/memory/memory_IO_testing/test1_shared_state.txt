@@ -1,0 +1,8 @@
+<frozen runpy>:128: RuntimeWarning: 'os_agent.memory.shared_state' found in sys.modules after import of package 'os_agent.memory', but prior to execution of 'os_agent.memory.shared_state'; this may result in unpredictable behaviour
+=== SharedState Test ===
+  Persistence: PASS (got='test_value')
+  Action log:  PASS (entries=1)
+  Snapshot:    PASS (keys=['disk_usage', 'ip_addresses', 'top_processes'])
+  Cross ctx:   PASS
+  Log cap:     PASS (count=50)
+=== Done ===
