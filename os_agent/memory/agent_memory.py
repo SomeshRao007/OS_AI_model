@@ -102,7 +102,11 @@ class AgentMemory:
 
     @staticmethod
     def _load_embedding_model():
-        """Lazy import + load of sentence-transformers model (CPU, 53 MB)."""
+        """Lazy import + load of sentence-transformers model (CPU, 53 MB).
+
+        Loads from pre-downloaded local copy to avoid HuggingFace network
+        requests and noisy download progress bars at runtime.
+        """
         try:
             from sentence_transformers import SentenceTransformer
         except ImportError:
@@ -110,7 +114,34 @@ class AgentMemory:
                 "sentence-transformers not installed. "
                 "Run: pip install sentence-transformers"
             )
-        return SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+
+        # Pre-downloaded local model (created by setup or first download)
+        local_model = (
+            Path(__file__).resolve().parent / "embedding_model"
+        )
+        if local_model.exists():
+            import io
+            import contextlib
+            import logging
+            import os
+
+            # Suppress HF hub noise, tokenizer warnings, progress bars
+            os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+            os.environ["TOKENIZERS_PARALLELISM"] = "false"
+            logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
+
+            # Silence the safetensors "Loading weights" tqdm bar and
+            # the "BertModel LOAD REPORT" table (both go to stderr)
+            with contextlib.redirect_stderr(io.StringIO()):
+                return SentenceTransformer(
+                    str(local_model), device="cpu", local_files_only=True,
+                )
+
+        # Fallback: download from HuggingFace and save locally for next time
+        model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+        local_model.mkdir(parents=True, exist_ok=True)
+        model.save(str(local_model))
+        return model
 
     # --- pruning ---
 

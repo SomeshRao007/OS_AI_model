@@ -31,7 +31,7 @@ _log = logging.getLogger("neurosh")
 
 
 class NeuroshShell:
-    """Interactive AI-powered shell with direct and AI modes."""
+    """Interactive AI-powered shell with terminal and chatbot modes."""
 
     def __init__(self) -> None:
         config = self._load_config()
@@ -44,9 +44,9 @@ class NeuroshShell:
         self._master = MasterAgent(self._engine, config)
 
         self._mode_mgr = ModeManager(
-            default_mode=shell_cfg.get("default_mode", ShellMode.DIRECT),
-            ai_prefix=shell_cfg.get("ai_prefix", "?"),
-            direct_prefix=shell_cfg.get("direct_prefix", "!"),
+            default_mode=shell_cfg.get("default_mode", ShellMode.TERMINAL),
+            chatbot_prefix=shell_cfg.get("chatbot_prefix", "?"),
+            terminal_prefix=shell_cfg.get("terminal_prefix", "!"),
         )
 
         self._history = ShellHistory()
@@ -78,10 +78,10 @@ class NeuroshShell:
                 should_exit = self._handle_meta(cleaned)
                 if should_exit:
                     break
-            elif effective_mode == ShellMode.AI:
-                self._handle_ai(cleaned)
+            elif effective_mode == ShellMode.CHATBOT:
+                self._handle_chatbot(cleaned)
             else:
-                self._handle_direct(cleaned)
+                self._handle_terminal(cleaned)
 
         self._renderer.print_info("Goodbye.")
 
@@ -98,26 +98,26 @@ class NeuroshShell:
                 return None
 
     def _build_prompt(self) -> HTML:
-        if self._mode_mgr.mode == ShellMode.AI:
-            return HTML("<b>neurosh</b><style fg='#61afef'>[ai]</style>&gt; ")
+        if self._mode_mgr.mode == ShellMode.CHATBOT:
+            return HTML("<b>neurosh</b><style fg='#e5c07b'>[chatbot]</style>&gt; ")
         return HTML("<b>neurosh</b>&gt; ")
 
-    # ── Direct mode ──────────────────────────────────────────────────────
+    # ── Terminal mode ────────────────────────────────────────────────────
 
-    def _handle_direct(self, cmd: str) -> None:
+    def _handle_terminal(self, cmd: str) -> None:
         """Execute a command via /bin/bash with inherited stdio."""
         try:
             result = subprocess.run(
                 cmd, shell=True, executable="/bin/bash",
             )
-            self._history.add_direct(cmd, result.returncode)
+            self._history.add_terminal(cmd, result.returncode)
         except Exception:
-            _log.exception("Direct command failed: %s", cmd)
+            _log.exception("Terminal command failed: %s", cmd)
             self._renderer.print_error("Command execution failed.")
 
-    # ── AI mode ──────────────────────────────────────────────────────────
+    # ── Chatbot mode ─────────────────────────────────────────────────────
 
-    def _handle_ai(self, query: str) -> None:
+    def _handle_chatbot(self, query: str) -> None:
         """Route query through the agent framework with streaming output."""
         try:
             domain = self._master.classify(query)
@@ -154,12 +154,12 @@ class NeuroshShell:
             self._master.session.add_turn(query, domain, full_response, hit_texts)
             self._master.shared_state.log_action(domain, query, full_response[:100])
 
-            self._history.add_ai(query, domain)
+            self._history.add_chatbot(query, domain)
 
         except KeyboardInterrupt:
             self._renderer.print_info("(cancelled)")
         except Exception:
-            _log.exception("AI query failed: %s", query)
+            _log.exception("Chatbot query failed: %s", query)
             self._renderer.print_error("Something went wrong processing your query.")
 
     # ── Meta commands ────────────────────────────────────────────────────
@@ -170,8 +170,8 @@ class NeuroshShell:
         command = parts[0].lower()
 
         handlers = {
-            "/ai": self._cmd_ai,
-            "/direct": self._cmd_direct,
+            "/chatbot": self._cmd_chatbot,
+            "/terminal": self._cmd_terminal,
             "/history": self._cmd_history,
             "/memory": self._cmd_memory,
             "/agents": self._cmd_agents,
@@ -188,14 +188,14 @@ class NeuroshShell:
 
         return handler()
 
-    def _cmd_ai(self) -> bool:
-        self._mode_mgr.switch_to_ai()
-        self._renderer.print_info("Switched to AI mode.")
+    def _cmd_chatbot(self) -> bool:
+        self._mode_mgr.switch_to_chatbot()
+        self._renderer.print_info("Switched to chatbot mode.")
         return False
 
-    def _cmd_direct(self) -> bool:
-        self._mode_mgr.switch_to_direct()
-        self._renderer.print_info("Switched to direct mode.")
+    def _cmd_terminal(self) -> bool:
+        self._mode_mgr.switch_to_terminal()
+        self._renderer.print_info("Switched to terminal mode.")
         return False
 
     def _cmd_history(self) -> bool:

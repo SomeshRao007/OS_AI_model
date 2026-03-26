@@ -10,37 +10,37 @@ def test_mode_manager():
     """Test mode switching and input classification."""
     mgr = ModeManager()
 
-    # Default mode is direct
-    assert mgr.mode == ShellMode.DIRECT
+    # Default mode is terminal
+    assert mgr.mode == ShellMode.TERMINAL
     assert mgr.prompt_text() == "neurosh> "
 
-    # Normal input in direct mode → direct
-    assert mgr.classify_input("ls -la") == ("direct", "ls -la")
+    # Normal input in terminal mode → terminal
+    assert mgr.classify_input("ls -la") == ("terminal", "ls -la")
 
-    # ? prefix in direct mode → AI
-    assert mgr.classify_input("? find large files") == ("ai", "find large files")
+    # ? prefix in terminal mode → chatbot
+    assert mgr.classify_input("? find large files") == ("chatbot", "find large files")
 
     # / prefix → meta regardless of mode
     assert mgr.classify_input("/help") == ("meta", "/help")
-    assert mgr.classify_input("/ai") == ("meta", "/ai")
+    assert mgr.classify_input("/chatbot") == ("meta", "/chatbot")
 
-    # Switch to AI mode
-    mgr.switch_to_ai()
-    assert mgr.mode == ShellMode.AI
-    assert mgr.prompt_text() == "neurosh[ai]> "
+    # Switch to chatbot mode
+    mgr.switch_to_chatbot()
+    assert mgr.mode == ShellMode.CHATBOT
+    assert mgr.prompt_text() == "neurosh[chatbot]> "
 
-    # Normal input in AI mode → AI
-    assert mgr.classify_input("find stuff") == ("ai", "find stuff")
+    # Normal input in chatbot mode → chatbot
+    assert mgr.classify_input("find stuff") == ("chatbot", "find stuff")
 
-    # ! prefix in AI mode → direct
-    assert mgr.classify_input("!uname -a") == ("direct", "uname -a")
+    # ! prefix in chatbot mode → terminal
+    assert mgr.classify_input("!uname -a") == ("terminal", "uname -a")
 
-    # ? prefix in AI mode → stays AI (no special meaning)
-    assert mgr.classify_input("? test") == ("ai", "? test")
+    # ? prefix in chatbot mode → stays chatbot (no special meaning)
+    assert mgr.classify_input("? test") == ("chatbot", "? test")
 
-    # ! prefix in direct mode → stays direct (no special meaning)
-    mgr.switch_to_direct()
-    assert mgr.classify_input("!echo hi") == ("direct", "!echo hi")
+    # ! prefix in terminal mode → stays terminal (no special meaning)
+    mgr.switch_to_terminal()
+    assert mgr.classify_input("!echo hi") == ("terminal", "!echo hi")
 
     print("PASS: test_mode_manager")
 
@@ -49,25 +49,25 @@ def test_shell_history():
     """Test annotated history tracking."""
     hist = ShellHistory(max_entries=5)
 
-    hist.add_direct("ls", 0)
-    hist.add_direct("false", 1)
-    hist.add_ai("find large files", "files")
+    hist.add_terminal("ls", 0)
+    hist.add_terminal("false", 1)
+    hist.add_chatbot("find large files", "files")
 
     entries = hist.recent()
     assert len(entries) == 3
-    assert entries[0].mode == "direct"
+    assert entries[0].mode == "terminal"
     assert entries[0].exit_code == 0
-    assert entries[2].mode == "ai"
+    assert entries[2].mode == "chatbot"
     assert entries[2].domain == "files"
 
     # Test max entries cap
     for i in range(10):
-        hist.add_direct(f"cmd_{i}", 0)
+        hist.add_terminal(f"cmd_{i}", 0)
     assert len(hist.recent(100)) == 5  # capped at max_entries
 
     # Test format_display
     output = hist.format_display()
-    assert "[BASH]" in output
+    assert "[TERMINAL]" in output
     assert "cmd_" in output
 
     print("PASS: test_shell_history")
@@ -75,17 +75,16 @@ def test_shell_history():
 
 def test_completer():
     """Test that completers are created for both modes."""
-    direct = create_completer("direct")
-    ai = create_completer("ai")
-    assert direct is not None
-    assert ai is not None
+    terminal = create_completer("terminal")
+    chatbot = create_completer("chatbot")
+    assert terminal is not None
+    assert chatbot is not None
     print("PASS: test_completer")
 
 
 def test_renderer():
     """Test renderer instantiation (output tests require a terminal)."""
     r = Renderer()
-    # Just verify methods exist and don't crash with basic calls
     r.print_info("test info")
     r.print_error("test error")
     r.print_success("test success")

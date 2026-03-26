@@ -16,9 +16,9 @@ generation:
 
 shell:
   name: "neurosh"
-  default_mode: "direct"  # "direct" or "ai"
-  ai_prefix: "?"          # prefix to trigger AI from direct mode
-  direct_prefix: "!"      # prefix to force direct from AI mode
+  default_mode: "terminal"    # "terminal" or "chatbot"
+  chatbot_prefix: "?"         # prefix to trigger chatbot from terminal mode
+  terminal_prefix: "!"        # prefix to force terminal from chatbot mode
 
 memory:
   state_dir: "~/.local/share/ai-daemon"

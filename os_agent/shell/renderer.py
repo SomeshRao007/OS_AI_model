@@ -66,7 +66,7 @@ class Renderer:
             HTML(
                 '<info>Type </info><title>/help</title>'
                 '<info> for commands. </info>'
-                '<title>?</title><info> prefix for AI queries.</info>'
+                '<title>?</title><info> prefix for chatbot queries.</info>'
             ),
             style=NEUROSH_STYLE,
         )
@@ -76,8 +76,8 @@ class Renderer:
         lines = [
             "<title>neurosh commands:</title>",
             "",
-            "  <title>/ai</title>        Switch to AI mode",
-            "  <title>/direct</title>    Switch to direct (bash) mode",
+            "  <title>/chatbot</title>   Switch to chatbot mode",
+            "  <title>/terminal</title>  Switch to terminal (bash) mode",
             "  <title>/history</title>   Show command history",
             "  <title>/memory</title>    Show agent memory stats",
             "  <title>/agents</title>    Show active agents",
@@ -85,8 +85,8 @@ class Renderer:
             "  <title>/help</title>      Show this help",
             "  <title>/exit</title>      Exit neurosh",
             "",
-            "  <title>?</title> &lt;query&gt;   AI query from direct mode",
-            "  <title>!</title> &lt;cmd&gt;     Bash command from AI mode",
+            "  <title>?</title> &lt;query&gt;   Chatbot query from terminal mode",
+            "  <title>!</title> &lt;cmd&gt;     Bash command from chatbot mode",
         ]
         for line in lines:
             print_formatted_text(HTML(line), style=NEUROSH_STYLE)

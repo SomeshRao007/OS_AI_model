@@ -1,6 +1,6 @@
 """Annotated command history for neurosh shell.
 
-Tracks both direct and AI commands with metadata (domain, exit code).
+Tracks both terminal and chatbot commands with metadata (domain, exit code).
 Separate from prompt_toolkit FileHistory which handles up-arrow recall.
 """
 
@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 @dataclass(slots=True)
 class HistoryEntry:
     command: str
-    mode: str  # "direct" or "ai"
+    mode: str  # "terminal" or "chatbot"
     timestamp: float = field(default_factory=time.time)
     domain: str | None = None
     exit_code: int | None = None
@@ -26,11 +26,11 @@ class ShellHistory:
         self._entries: list[HistoryEntry] = []
         self._max = max_entries
 
-    def add_direct(self, cmd: str, exit_code: int) -> None:
-        self._append(HistoryEntry(command=cmd, mode="direct", exit_code=exit_code))
+    def add_terminal(self, cmd: str, exit_code: int) -> None:
+        self._append(HistoryEntry(command=cmd, mode="terminal", exit_code=exit_code))
 
-    def add_ai(self, query: str, domain: str) -> None:
-        self._append(HistoryEntry(command=query, mode="ai", domain=domain))
+    def add_chatbot(self, query: str, domain: str) -> None:
+        self._append(HistoryEntry(command=query, mode="chatbot", domain=domain))
 
     def recent(self, n: int = 20) -> list[HistoryEntry]:
         return self._entries[-n:]
@@ -43,11 +43,11 @@ class ShellHistory:
         lines = []
         for e in entries:
             ts = time.strftime("%H:%M:%S", time.localtime(e.timestamp))
-            if e.mode == "direct":
+            if e.mode == "terminal":
                 status = f"exit={e.exit_code}" if e.exit_code is not None else ""
-                lines.append(f"  {ts}  [BASH]  {e.command}  {status}")
+                lines.append(f"  {ts}  [TERMINAL]  {e.command}  {status}")
             else:
-                domain_tag = f"[{e.domain.upper()}]" if e.domain else "[AI]"
+                domain_tag = f"[{e.domain.upper()}]" if e.domain else "[CHATBOT]"
                 lines.append(f"  {ts}  {domain_tag:12s}  {e.command}")
         return "\n".join(lines)
 
