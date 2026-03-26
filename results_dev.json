@@ -1,0 +1,421 @@
+{
+  "backend": "llama-cpp-python",
+  "model": "/home/somesh/Desktop/OS_AI_model/finetuning/q4_k_m-deploy/qwen3.5-4b-os-q4km.gguf",
+  "params": {
+    "n_ctx": 1024,
+    "n_gpu_layers": -1,
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "top_k": 20,
+    "num_predict": 1024,
+    "stop": [
+      "<|im_end|>",
+      "<|endoftext|>"
+    ]
+  },
+  "avg_tok_s": 70.3,
+  "warm_avg_tok_s": 70.4,
+  "vram_peak_mb": 3942,
+  "results": [
+    {
+      "question": "How do I use git bisect to find the commit that introduced a bug?",
+      "domain": "git",
+      "response": "```bash\ngit bisect start HEAD~10 HEAD\n```\nStarts a binary search between two commits to identify the first one that introduced a bug.",
+      "tokens": 37,
+      "tok_per_sec": 63.9,
+      "vram_mb": 3925
+    },
+    {
+      "question": "How do I cherry-pick a commit from another branch?",
+      "domain": "git",
+      "response": "```bash\ngit cherry-pick abc123\n```\nThis command applies the changes from commit `abc123` onto your current branch, creating a new commit with those modifications.",
+      "tokens": 44,
+      "tok_per_sec": 70.9,
+      "vram_mb": 3925
+    },
+    {
+      "question": "How do I recover a dropped stash using git reflog?",
+      "domain": "git",
+      "response": "```bash\ngit reflog show\n```\nDisplays a log of all reference changes including stashes, allowing you to identify and restore a dropped stash by its commit hash.",
+      "tokens": 39,
+      "tok_per_sec": 70.5,
+      "vram_mb": 3905
+    },
+    {
+      "question": "How do I set up a git pre-commit hook that runs linting?",
+      "domain": "git",
+      "response": "```bash\ncat > .git/hooks/pre-commit << 'EOF'\n#!/bin/bash\necho \"Running linting...\"\nclang-format -i -style=Google \"$1\"\nif [ $? -ne 0 ]; then\n    echo \"Formatting errors found. Please fix and try again.\"\n    exit 1\nfi\nEOF\nchmod +x .git/hooks/pre-commit\n```",
+      "tokens": 85,
+      "tok_per_sec": 70.5,
+      "vram_mb": 3912
+    },
+    {
+      "question": "How do I squash the last 3 commits into one?",
+      "domain": "git",
+      "response": "```bash\ngit rebase -i HEAD~3\n```\nThis opens an interactive rebase editor where you can mark the last three commits with \"squash\" and save to combine them into a single commit.",
+      "tokens": 48,
+      "tok_per_sec": 71.8,
+      "vram_mb": 3912
+    },
+    {
+      "question": "How do I clone only a specific branch with shallow history?",
+      "domain": "git",
+      "response": "```bash\ngit clone --single-branch --depth 1 https://github.com/example/repo.git\n```\nThis clones the repository with only one branch and limits the history to the last commit, reducing disk usage and clone time.",
+      "tokens": 52,
+      "tok_per_sec": 70.3,
+      "vram_mb": 3939
+    },
+    {
+      "question": "How do I use git worktree to work on multiple branches simultaneously?",
+      "domain": "git",
+      "response": "```bash\ngit worktree add /home/user/projects/branch1 origin/feature-x\n```\nCreates a new working tree at the specified path for tracking a specific branch, allowing you to work on multiple branches concurrently without switching back and forth.",
+      "tokens": 54,
+      "tok_per_sec": 71.6,
+      "vram_mb": 3939
+    },
+    {
+      "question": "How do I resolve a merge conflict in git from the command line?",
+      "domain": "git",
+      "response": "```bash\ngit checkout --ours\n```\nThis command replaces your local copy with the version from the current branch, discarding your local changes.",
+      "tokens": 34,
+      "tok_per_sec": 67.6,
+      "vram_mb": 3940
+    },
+    {
+      "question": "How do I build a Docker image from a Dockerfile?",
+      "domain": "docker",
+      "response": "```bash\ndocker build -t myimage:1.0 .\n```\nBuilds a Docker image named \"myimage\" with tag \"1.0\" from the current directory's Dockerfile.",
+      "tokens": 46,
+      "tok_per_sec": 66.8,
+      "vram_mb": 3942
+    },
+    {
+      "question": "How do I run a Docker container with a mounted volume?",
+      "domain": "docker",
+      "response": "```bash\ndocker run -v /local/path:/container/path myapp\n```\nThis command mounts the local directory `/local/path` into the container at `/container/path`, allowing persistent data storage inside the container.",
+      "tokens": 48,
+      "tok_per_sec": 67.7,
+      "vram_mb": 3942
+    },
+    {
+      "question": "How do I list all running Docker containers and their resource usage?",
+      "domain": "docker",
+      "response": "```bash\ndocker ps -a\n```\nLists all containers (both running and stopped) with details including resource usage for each.",
+      "tokens": 31,
+      "tok_per_sec": 67.8,
+      "vram_mb": 3939
+    },
+    {
+      "question": "How do I exec into a running Docker container to debug it?",
+      "domain": "docker",
+      "response": "```bash\ndocker exec -it myapp-container /bin/bash\n```\nExecutes a new shell inside the specified container, allowing you to run commands and debug processes as if you were inside the container.",
+      "tokens": 46,
+      "tok_per_sec": 69.4,
+      "vram_mb": 3937
+    },
+    {
+      "question": "How do I view logs from a Docker container?",
+      "domain": "docker",
+      "response": "```bash\ndocker logs webapp\n```\nDisplays all log output from the container named \"webapp\" since it was started.",
+      "tokens": 31,
+      "tok_per_sec": 68.4,
+      "vram_mb": 3937
+    },
+    {
+      "question": "How do I remove all stopped containers and unused images to free disk space?",
+      "domain": "docker",
+      "response": "```bash\ndocker system prune\n```\nThis command removes all stopped containers, unused networks, and dangling images, freeing up disk space in one operation.",
+      "tokens": 35,
+      "tok_per_sec": 68.8,
+      "vram_mb": 3935
+    },
+    {
+      "question": "How do I create a Docker network for container-to-container communication?",
+      "domain": "docker",
+      "response": "```bash\ndocker network create myapp-network\n```\nCreates a new isolated Docker network named myapp-network that containers can join to communicate with each other.",
+      "tokens": 36,
+      "tok_per_sec": 69.6,
+      "vram_mb": 3935
+    },
+    {
+      "question": "What is the difference between CMD and ENTRYPOINT in a Dockerfile?",
+      "domain": "docker",
+      "response": "```bash\ndocker run --rm myimage:latest\n```\nCMD sets the default command that runs when the container starts, allowing it to be overridden at runtime, while ENTRYPOINT defines the main executable that cannot be overridden.",
+      "tokens": 50,
+      "tok_per_sec": 71.7,
+      "vram_mb": 3917
+    },
+    {
+      "question": "How do I use strace to trace system calls of a command?",
+      "domain": "debugging",
+      "response": "```bash\nstrace ./myapp\n```\nThis command traces all system calls made by `./myapp` and displays them with timestamps, file names, and function names as they occur.",
+      "tokens": 44,
+      "tok_per_sec": 70.8,
+      "vram_mb": 3917
+    },
+    {
+      "question": "How do I attach gdb to a running process for debugging?",
+      "domain": "debugging",
+      "response": "```bash\nsudo gdb -p 12345\n```\nAttaches gdb to process 12345, allowing you to set breakpoints, step through execution, and inspect variables in a live process.",
+      "tokens": 50,
+      "tok_per_sec": 71.8,
+      "vram_mb": 3916
+    },
+    {
+      "question": "How do I check for memory leaks using valgrind?",
+      "domain": "debugging",
+      "response": "```bash\nvalgrind --leak-check=full ./myapp\n```\nThis runs your application with valgrind enabled to detect memory leaks, showing which allocations are never freed.",
+      "tokens": 43,
+      "tok_per_sec": 70.7,
+      "vram_mb": 3916
+    },
+    {
+      "question": "How do I use perf to profile CPU performance of a program?",
+      "domain": "debugging",
+      "response": "```bash\nperf record -F 999999 -p 12345\n```\nThis command samples the process with PID 12345 at a very high frequency (999999 samples per second) to capture detailed CPU performance data.",
+      "tokens": 65,
+      "tok_per_sec": 72.8,
+      "vram_mb": 3904
+    },
+    {
+      "question": "How do I generate and analyze a core dump from a crashed program?",
+      "domain": "debugging",
+      "response": "```bash\nsudo coredumpctl list\n```\nLists all available core dumps on the system, allowing you to identify which one corresponds to the crashed program you're investigating.",
+      "tokens": 39,
+      "tok_per_sec": 70.1,
+      "vram_mb": 3904
+    },
+    {
+      "question": "How do I use lsof to find which process has a file open?",
+      "domain": "debugging",
+      "response": "```bash\nlsof -i eth0\n```\nDisplays all network connections on the eth0 interface, showing the process name, PID, and file descriptor for each connection.",
+      "tokens": 41,
+      "tok_per_sec": 69.8,
+      "vram_mb": 3904
+    },
+    {
+      "question": "How do I inspect the memory map of a process using /proc?",
+      "domain": "debugging",
+      "response": "```bash\ncat /proc/$(pidof myapp)/maps\n```\nDisplays all memory regions mapped by the process with their permissions and offsets.",
+      "tokens": 35,
+      "tok_per_sec": 69.6,
+      "vram_mb": 3904
+    },
+    {
+      "question": "What is the difference between static and dynamic analysis tools?",
+      "domain": "debugging",
+      "response": "```bash\nstrings /usr/bin/ls\n```\nStatic analysis tools like `strings` extract readable text from binaries without executing them, while dynamic tools require the program to run on a live system.",
+      "tokens": 45,
+      "tok_per_sec": 70.8,
+      "vram_mb": 3904
+    },
+    {
+      "question": "How do I compile a C program with gcc and enable all warnings?",
+      "domain": "build",
+      "response": "```bash\ngcc -Wall -Wextra -Wpedantic -Werror -o output file.c\n```\nCompiles the file with all warnings enabled and treats warnings as errors, stopping compilation if any warnings are found.",
+      "tokens": 50,
+      "tok_per_sec": 71.5,
+      "vram_mb": 3904
+    },
+    {
+      "question": "How do I create a Makefile with a clean target and dependency tracking?",
+      "domain": "build",
+      "response": "```bash\ncat > Makefile << 'EOF'\nCC = gcc\nCFLAGS = -Wall -g\n\n.PHONY: clean\n\nall: output.txt\n\noutput.txt: input.txt\n\t$(CC) $(CFLAGS) -o output.txt input.txt\n\nclean:\n\trm -f output.txt\nEOF\n```",
+      "tokens": 72,
+      "tok_per_sec": 72.8,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I compile a shared library (.so) from C source files?",
+      "domain": "build",
+      "response": "```bash\ngcc -shared -fPIC -o libmath.so *.c\n```\nCompiles C source files into a shared object library with position-independent code suitable for dynamic linking.",
+      "tokens": 42,
+      "tok_per_sec": 70.1,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I use pkg-config to find compiler flags for a library?",
+      "domain": "build",
+      "response": "```bash\npkg-config --cflags --libs libssl\n```\nThis command retrieves both the compiler flags and linker flags needed to compile and link against the libssl library.",
+      "tokens": 40,
+      "tok_per_sec": 70.3,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I cross-compile a binary for ARM on an x86 machine?",
+      "domain": "build",
+      "response": "```bash\narm-linux-gnueabihf-gcc -o output arm_program.c\n```",
+      "tokens": 25,
+      "tok_per_sec": 65.8,
+      "vram_mb": 3885
+    },
+    {
+      "question": "What is the difference between static and dynamic linking?",
+      "domain": "build",
+      "response": "```bash\nldd /usr/bin/ls\n```\nLists all dynamically linked shared libraries required by the `ls` executable, demonstrating dynamic linking.",
+      "tokens": 35,
+      "tok_per_sec": 69.5,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I create a systemd timer that runs a script every hour?",
+      "domain": "systemd",
+      "response": "```bash\ncat > /etc/systemd/system/hourly-script.timer << 'EOF'\n[Unit]\nDescription=Run script every hour\n\n[Timer]\nOnBootSec=1min\nOnUnitActiveSec=1h\nUnit=hourly-script.service\n\n[Install]\nWantedBy=timers.target\nEOF\nsystemctl daemon-reload\nsystemctl enable hourly-script.timer\nsystemctl start hourly-script.timer\n```",
+      "tokens": 95,
+      "tok_per_sec": 74.1,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I write a custom systemd service unit file?",
+      "domain": "systemd",
+      "response": "```bash\nsudo nano /etc/systemd/system/custom-service.service\n```\nCreates a new unit file in the system directory, where you can define service type, start/stop commands, user, and other configuration options.",
+      "tokens": 49,
+      "tok_per_sec": 71.5,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I view systemd journal logs for a specific service since yesterday?",
+      "domain": "systemd",
+      "response": "```bash\njournalctl -u nginx -f --since yesterday\n```\nThis command streams journal logs for the nginx service, starting from yesterday, with the `-f` flag enabling real-time output.",
+      "tokens": 45,
+      "tok_per_sec": 70.8,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I set up systemd service dependencies so service B starts after service A?",
+      "domain": "systemd",
+      "response": "```bash\nsudo systemctl edit service-b\n```\nThis opens an editor where you can add `After=some.service` to declare that service B should start after service A completes.",
+      "tokens": 41,
+      "tok_per_sec": 70.0,
+      "vram_mb": 3885
+    },
+    {
+      "question": "What is systemd socket activation and when would you use it?",
+      "domain": "systemd",
+      "response": "```bash\nsudo systemctl list-sockets\n```\nDisplays all registered socket units, including network sockets, Unix domain sockets, and IPC sockets that systemd activates on demand.",
+      "tokens": 38,
+      "tok_per_sec": 70.0,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I configure UFW to allow only SSH and HTTP traffic?",
+      "domain": "security",
+      "response": "```bash\nufw allow ssh && ufw allow 80/tcp && ufw allow 443/tcp && ufw enable\n```\nThis command opens ports 22, 80, and 443 for incoming traffic, enables UFW, and sets the default policy to deny all other traffic.",
+      "tokens": 71,
+      "tok_per_sec": 72.6,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I harden SSH by disabling root login and password auth?",
+      "domain": "security",
+      "response": "```bash\nsudo nano /etc/ssh/sshd_config\n```\nEdit the file to set `PermitRootLogin no` and `PasswordAuthentication no`, then save and test with `sudo ssh -o ConnectTimeout=1 root@yourserver`.",
+      "tokens": 56,
+      "tok_per_sec": 72.2,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I use fail2ban to protect against brute-force SSH attacks?",
+      "domain": "security",
+      "response": "```bash\nsudo fail2ban-server\n```\nStarts the fail2ban service to monitor logs and automatically block IPs attempting repeated SSH login failures.",
+      "tokens": 35,
+      "tok_per_sec": 68.9,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I check AppArmor profiles and their enforcement status?",
+      "domain": "security",
+      "response": "```bash\nsudo aa-status\n```\nDisplays a summary of all AppArmor profiles including their status (enforced, complain, complain_enforce), type, and paths.",
+      "tokens": 39,
+      "tok_per_sec": 70.0,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I audit file access using auditd and ausearch?",
+      "domain": "security",
+      "response": "```bash\nausearch -f /etc/shadow\n```\nSearches the audit log for any file access operations on the /etc/shadow file, which is critical for system security auditing.",
+      "tokens": 44,
+      "tok_per_sec": 70.9,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I connect to a PostgreSQL database and list all tables?",
+      "domain": "database",
+      "response": "```bash\npsql -U postgres -d mydb -c \"\\dt\"\n```\nThis command connects to the PostgreSQL database 'mydb' as the 'postgres' user and lists all tables in the current database using the \\dt meta-command.",
+      "tokens": 56,
+      "tok_per_sec": 72.1,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I dump a MySQL database to a SQL file for backup?",
+      "domain": "database",
+      "response": "```bash\nmysqldump -u root -p --all-databases > backup_$(date +%F).sql\n```",
+      "tokens": 31,
+      "tok_per_sec": 68.4,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I create a SQLite database and run a query from the command line?",
+      "domain": "database",
+      "response": "```bash\nsqlite3 /home/user/data.db \"CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);\"\n```",
+      "tokens": 29,
+      "tok_per_sec": 67.3,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I restore a PostgreSQL database from a pg_dump backup?",
+      "domain": "database",
+      "response": "```bash\npsql -U postgres -d backup_db < backup.sql\n```\nThis command restores the database by reading SQL commands from a backup file and executing them against the target database.",
+      "tokens": 43,
+      "tok_per_sec": 70.6,
+      "vram_mb": 3885
+    },
+    {
+      "question": "How do I check the size of all databases in PostgreSQL?",
+      "domain": "database",
+      "response": "```bash\npsql -U postgres -c \"\\d+ \\\"postgres\\\" | grep -E 'Size|database_size' | awk '{sum += $3} END {print \"Total size: \" sum/1024/1024 \" MB\"}'\n```\nCalculates total database size by summing all table and index sizes displayed in the pg_stat_database output.",
+      "tokens": 85,
+      "tok_per_sec": 73.7,
+      "vram_mb": 3880
+    },
+    {
+      "question": "How do I use ssh-agent to avoid typing my SSH passphrase repeatedly?",
+      "domain": "devops",
+      "response": "```bash\nssh-add ~/.ssh/id_rsa\n```\nThis command adds your RSA private key to the SSH agent, allowing it to remember your passphrase so you don't have to re-enter it for each new SSH connection.",
+      "tokens": 49,
+      "tok_per_sec": 71.4,
+      "vram_mb": 3880
+    },
+    {
+      "question": "How do I set up log rotation with logrotate for a custom application?",
+      "domain": "devops",
+      "response": "```bash\ncat > /etc/logrotate.d/myapp << 'EOF'\n/var/log/myapp/*.log {\n    daily\n    rotate 7\n    compress\n    delaycompress\n    missingok\n    notifempty\n    create 644 myapp myapp\n}\nEOF\n```\nCreates a logrotate configuration file that rotates logs daily, keeps 7 days of compressed archives, and creates new log files with proper permissions after rotation.",
+      "tokens": 99,
+      "tok_per_sec": 73.9,
+      "vram_mb": 3880
+    },
+    {
+      "question": "How do I create a cron job that logs its output with timestamps?",
+      "domain": "devops",
+      "response": "```bash\necho '0 */4 * * * /usr/local/bin/backup.sh | tee -a /home/admin/backup.log' | sudo tee /etc/cron.d/backup.log\n```",
+      "tokens": 46,
+      "tok_per_sec": 71.1,
+      "vram_mb": 3880
+    },
+    {
+      "question": "How do I use envsubst to substitute environment variables in a config template?",
+      "domain": "devops",
+      "response": "```bash\nenvsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf\n```\nReads a template file, substitutes all `${VAR}` placeholders with corresponding environment variables, and writes the result to a new file.",
+      "tokens": 51,
+      "tok_per_sec": 71.2,
+      "vram_mb": 3880
+    },
+    {
+      "question": "How do I write a health check script that curls an endpoint and alerts on failure?",
+      "domain": "devops",
+      "response": "```bash\n#!/bin/bash\ncurl -f https://api.example.com/health -o /dev/null -s && echo \"OK\" || echo \"FAIL\"\n```",
+      "tokens": 40,
+      "tok_per_sec": 69.7,
+      "vram_mb": 3880
+    }
+  ]
+}

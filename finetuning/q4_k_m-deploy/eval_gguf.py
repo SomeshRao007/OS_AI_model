@@ -1,16 +1,19 @@
 """
 Evaluation script for GGUF models via Ollama API.
-Tests the fine-tuned model on the same 44 OS/Linux domain questions as eval_adapter.py.
+Tests the fine-tuned model on OS/Linux domain questions (44 original or 150 full suite).
 
 Prerequisites:
     ollama serve  (must be running)
     ollama create os-ai -f Modelfile  (model must be imported)
 
 Usage:
-    python eval_gguf.py --no-score
+    python eval_gguf.py --no-score                   # original 44 questions
+    python eval_gguf.py --full --no-score             # all 150 questions
+    python eval_gguf.py --difficulty developer --no-score  # developer-level only
+    python eval_gguf.py --domain docker --no-score    # single eval domain
     python eval_gguf.py --model os-ai
     python eval_gguf.py --no-score --output eval_results.json
-    python eval_gguf.py --compare qwen3.5:4b   # side-by-side with base model
+    python eval_gguf.py --compare qwen3.5:4b          # side-by-side with base model
 """
 
 import argparse
@@ -20,6 +23,14 @@ import sys
 import time
 import urllib.error
 import urllib.request
+
+# Add project root to path for eval_questions import
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent.parent.parent))
+from os_agent.eval_questions import (
+    LEGACY_TUPLES,
+    ORIGINAL_44_TUPLES,
+    filter_questions,
+)
 
 DEFAULT_MODEL = "os-ai"
 OLLAMA_URL = "http://localhost:11434/api/chat"
@@ -32,69 +43,8 @@ SYSTEM_PROMPT = (
     "Never list alternatives. Never restate the question. Never explain individual flags."
 )
 
-TEST_QUESTIONS = [
-    # --- File operations ---
-    ("Find all files larger than 100MB on Linux", "files"),
-    ("Find files modified in the last 24 hours in /var/log", "files"),
-    ("Recursively search for the string 'ERROR' in all .log files under /var", "files"),
-    ("What does chmod 755 do and when would you use it?", "files"),
-    ("How do I change the owner of a directory and all its contents?", "files"),
-    ("How do I create a symbolic link?", "files"),
-
-    # --- Networking & SSH ---
-    ("List all open TCP ports on the system", "networking"),
-    ("Generate an SSH key pair and add it to authorized_keys", "networking"),
-    ("How do I copy a file to a remote server using SCP?", "networking"),
-    ("How do I check my current IP address on Linux?", "networking"),
-    ("How do I test if a remote port is open without telnet?", "networking"),
-    ("How do I block port 22 with iptables?", "networking"),
-    ("How do I use rsync to sync a local folder to a remote server?", "networking"),
-
-    # --- Process & resource management ---
-    ("How do I check disk usage broken down by directory?", "process"),
-    ("How do I kill a process by name without knowing its PID?", "process"),
-    ("Show me how to find which process is using the most memory", "process"),
-    ("How do I run a process in the background and keep it after SSH logout?", "process"),
-    ("How do I schedule a cron job to run a script every day at midnight?", "process"),
-    ("How do I check CPU and memory usage in real time?", "process"),
-
-    # --- User & permission management ---
-    ("How do I add a user to the sudo group?", "users"),
-    ("How do I create a new user with a home directory?", "users"),
-    ("How do I lock a user account without deleting it?", "users"),
-    ("How do I view all groups a user belongs to?", "users"),
-
-    # --- Package & service management ---
-    ("How do I install a .deb package manually?", "packages"),
-    ("How do I start, stop, and restart a systemd service?", "packages"),
-    ("How do I check if a service is enabled on boot with systemd?", "packages"),
-    ("How do I find which package owns a specific file on Debian/Ubuntu?", "packages"),
-
-    # --- Text processing ---
-    ("How do I extract the 3rd column from a space-separated file using awk?", "text"),
-    ("How do I replace all occurrences of 'foo' with 'bar' in a file using sed?", "text"),
-    ("How do I count lines, words, and characters in a file?", "text"),
-    ("How do I sort a file and remove duplicate lines?", "text"),
-
-    # --- Storage & archiving ---
-    ("How do I mount a USB drive on Linux?", "storage"),
-    ("How do I check available disk space on all mounted filesystems?", "storage"),
-    ("How do I create a compressed tar.gz archive of a directory?", "storage"),
-    ("How do I find and delete files older than 30 days?", "storage"),
-
-    # --- Kernel / OS concepts ---
-    ("What is a Linux kernel module and how do you load one?", "kernel"),
-    ("Explain the difference between a process and a thread in Linux", "kernel"),
-    ("How does virtual memory paging work in Linux?", "kernel"),
-    ("What is the purpose of the /proc filesystem?", "kernel"),
-    ("How do I check the current kernel version and build info?", "kernel"),
-
-    # --- Shell scripting ---
-    ("Write a bash script that checks if a file exists and prints a message", "scripting"),
-    ("How do I loop over all .log files in a directory in bash?", "scripting"),
-    ("How do I capture the output of a command into a variable in bash?", "scripting"),
-    ("How do I pass arguments to a bash script and validate them?", "scripting"),
-]
+# Question bank imported from eval_questions.py
+TEST_QUESTIONS = ORIGINAL_44_TUPLES
 
 
 def parse_args():
@@ -125,7 +75,41 @@ def parse_args():
         default=None,
         help="Save results to JSON file",
     )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Run all 150 questions instead of original 44",
+    )
+    parser.add_argument(
+        "--difficulty",
+        default=None,
+        help="Filter: basic|intermediate|advanced|developer",
+    )
+    parser.add_argument(
+        "--domain",
+        default=None,
+        help="Filter by eval domain (e.g. docker, git, files)",
+    )
+    parser.add_argument(
+        "--test-type",
+        default=None,
+        help="Filter: command|conceptual|routing|format|adversarial",
+    )
     return parser.parse_args()
+
+
+def build_question_list(args) -> list[tuple[str, str]]:
+    """Build the question list based on CLI flags."""
+    if args.full:
+        return LEGACY_TUPLES
+    if args.difficulty or args.domain or args.test_type:
+        filtered = filter_questions(
+            difficulty=args.difficulty,
+            eval_domain=args.domain,
+            test_type=args.test_type,
+        )
+        return [(q.q, q.eval_domain) for q in filtered]
+    return TEST_QUESTIONS
 
 
 def strip_thinking(text):
@@ -198,9 +182,10 @@ def check_ollama(model_name):
     print(f"Ollama model: {model_name}")
 
 
-def run_eval(model_name, args):
+def run_evaluation(model_name, args, questions=None):
+    questions = questions or TEST_QUESTIONS
     print(f"\n{'=' * 70}")
-    print(f"EVALUATION — {model_name}")
+    print(f"EVALUATION — {model_name} ({len(questions)} questions)")
     print(f"{'=' * 70}")
 
     results = []
@@ -209,8 +194,8 @@ def run_eval(model_name, args):
     total_tokens = 0
     total_time_tokens = []
 
-    for i, (question, domain) in enumerate(TEST_QUESTIONS, 1):
-        print(f"\n[{i}/{len(TEST_QUESTIONS)}] [{domain.upper()}] {question}")
+    for i, (question, domain) in enumerate(questions, 1):
+        print(f"\n[{i}/{len(questions)}] [{domain.upper()}] {question}")
         print("-" * 50)
 
         response, tokens, tok_s = ollama_chat(model_name, question, args.max_tokens)
@@ -248,7 +233,7 @@ def run_eval(model_name, args):
 
     if scores:
         avg = sum(scores) / len(scores)
-        print(f"  Rated: {len(scores)}/{len(TEST_QUESTIONS)} | Avg score: {avg:.2f}/5")
+        print(f"  Rated: {len(scores)}/{len(questions)} | Avg score: {avg:.2f}/5")
 
         print(f"\n  Per-domain scores:")
         for domain, dscores in sorted(domain_scores.items()):
@@ -270,14 +255,16 @@ def run_eval(model_name, args):
 
 def main():
     args = parse_args()
+    questions = build_question_list(args)
+    print(f"Running {len(questions)} questions")
 
     check_ollama(args.model)
-    results_primary = run_eval(args.model, args)
+    results_primary = run_evaluation(args.model, args, questions)
 
     results_compare = None
     if args.compare:
         check_ollama(args.compare)
-        results_compare = run_eval(args.compare, args)
+        results_compare = run_evaluation(args.compare, args, questions)
 
     if args.output:
         output_data = {"model": args.model, "results": results_primary}

@@ -3,7 +3,7 @@ Step 1 verification: llama-cpp-python inference with our fine-tuned GGUF.
 
 Tests:
   1. Model loads on GPU (n_gpu_layers=-1)
-  2. All 44 questions run successfully
+  2. All questions run successfully (44 original or 150 full suite)
   3. Measures tok/s per question and overall average
   4. Tracks VRAM utilization before/during/after inference
   5. Compares against Ollama baseline (67 tok/s)
@@ -13,8 +13,11 @@ Parameters match Modelfile.think exactly:
 
 Usage:
     source os_agent_env/bin/activate
-    python os_agent/test_inference.py --quick        # 3 questions only
-    python os_agent/test_inference.py --benchmark    # full 44-question run
+    python os_agent/test_inference.py --quick             # 3 questions only
+    python os_agent/test_inference.py --benchmark         # original 44 questions
+    python os_agent/test_inference.py --full              # all 150 questions
+    python os_agent/test_inference.py --difficulty developer  # developer-level only
+    python os_agent/test_inference.py --domain docker     # single eval domain
     python os_agent/test_inference.py --output results.json
 """
 
@@ -27,6 +30,13 @@ import time
 from pathlib import Path
 
 from llama_cpp import Llama
+
+from os_agent.eval_questions import (
+    ALL_QUESTIONS,
+    LEGACY_TUPLES,
+    ORIGINAL_44_TUPLES,
+    filter_questions,
+)
 
 MODEL_PATH = str(
     Path(__file__).resolve().parent.parent
@@ -59,53 +69,9 @@ STOP_TOKENS = ["<|im_end|>", "<|endoftext|>"]
 # n_gpu_layers=-1 → all layers on GPU
 N_GPU_LAYERS = -1
 
-# Same 44 questions from the existing Ollama-based evaluation script
-TEST_QUESTIONS = [
-    ("Find all files larger than 100MB on Linux", "files"),
-    ("Find files modified in the last 24 hours in /var/log", "files"),
-    ("Recursively search for the string 'ERROR' in all .log files under /var", "files"),
-    ("What does chmod 755 do and when would you use it?", "files"),
-    ("How do I change the owner of a directory and all its contents?", "files"),
-    ("How do I create a symbolic link?", "files"),
-    ("List all open TCP ports on the system", "networking"),
-    ("Generate an SSH key pair and add it to authorized_keys", "networking"),
-    ("How do I copy a file to a remote server using SCP?", "networking"),
-    ("How do I check my current IP address on Linux?", "networking"),
-    ("How do I test if a remote port is open without telnet?", "networking"),
-    ("How do I block port 22 with iptables?", "networking"),
-    ("How do I use rsync to sync a local folder to a remote server?", "networking"),
-    ("How do I check disk usage broken down by directory?", "process"),
-    ("How do I kill a process by name without knowing its PID?", "process"),
-    ("Show me how to find which process is using the most memory", "process"),
-    ("How do I run a process in the background and keep it after SSH logout?", "process"),
-    ("How do I schedule a cron job to run a script every day at midnight?", "process"),
-    ("How do I check CPU and memory usage in real time?", "process"),
-    ("How do I add a user to the sudo group?", "users"),
-    ("How do I create a new user with a home directory?", "users"),
-    ("How do I lock a user account without deleting it?", "users"),
-    ("How do I view all groups a user belongs to?", "users"),
-    ("How do I install a .deb package manually?", "packages"),
-    ("How do I start, stop, and restart a systemd service?", "packages"),
-    ("How do I check if a service is enabled on boot with systemd?", "packages"),
-    ("How do I find which package owns a specific file on Debian/Ubuntu?", "packages"),
-    ("How do I extract the 3rd column from a space-separated file using awk?", "text"),
-    ("How do I replace all occurrences of 'foo' with 'bar' in a file using sed?", "text"),
-    ("How do I count lines, words, and characters in a file?", "text"),
-    ("How do I sort a file and remove duplicate lines?", "text"),
-    ("How do I mount a USB drive on Linux?", "storage"),
-    ("How do I check available disk space on all mounted filesystems?", "storage"),
-    ("How do I create a compressed tar.gz archive of a directory?", "storage"),
-    ("How do I find and delete files older than 30 days?", "storage"),
-    ("What is a Linux kernel module and how do you load one?", "kernel"),
-    ("Explain the difference between a process and a thread in Linux", "kernel"),
-    ("How does virtual memory paging work in Linux?", "kernel"),
-    ("What is the purpose of the /proc filesystem?", "kernel"),
-    ("How do I check the current kernel version and build info?", "kernel"),
-    ("Write a bash script that checks if a file exists and prints a message", "scripting"),
-    ("How do I loop over all .log files in a directory in bash?", "scripting"),
-    ("How do I capture the output of a command into a variable in bash?", "scripting"),
-    ("How do I pass arguments to a bash script and validate them?", "scripting"),
-]
+# Question bank imported from eval_questions.py
+# TEST_QUESTIONS is the legacy (q, domain) tuple format for backward compat
+TEST_QUESTIONS = ORIGINAL_44_TUPLES
 
 
 # ── VRAM tracking ─────────────────────────────────────────────────────────
@@ -297,22 +263,43 @@ def run_benchmark(model: Llama, questions: list, output_path: str | None = None)
     return results, warm_avg
 
 
+def _build_question_list(args) -> list[tuple[str, str]]:
+    """Build the question list based on CLI flags."""
+    if args.quick:
+        return TEST_QUESTIONS[:3]
+    if args.benchmark:
+        return TEST_QUESTIONS
+    if args.full:
+        return LEGACY_TUPLES
+
+    # Filtered mode: use eval_questions filtering
+    if args.difficulty or args.domain or args.test_type:
+        filtered = filter_questions(
+            difficulty=args.difficulty,
+            eval_domain=args.domain,
+            test_type=args.test_type,
+        )
+        return [(q.q, q.eval_domain) for q in filtered]
+
+    # Default: original 44
+    return TEST_QUESTIONS
+
+
 def main():
     parser = argparse.ArgumentParser(description="Test llama-cpp-python inference")
-    parser.add_argument("--benchmark", action="store_true", help="Run all 44 questions")
+    parser.add_argument("--benchmark", action="store_true", help="Run original 44 questions")
+    parser.add_argument("--full", action="store_true", help="Run all 150 questions")
     parser.add_argument("--quick", action="store_true", help="Run 3 questions only")
+    parser.add_argument("--difficulty", default=None, help="Filter: basic|intermediate|advanced|developer")
+    parser.add_argument("--domain", default=None, help="Filter by eval domain (e.g. docker, git, files)")
+    parser.add_argument("--test-type", default=None, help="Filter: command|conceptual|routing|format|adversarial")
     parser.add_argument("--output", default=None, help="Save results to JSON")
     args = parser.parse_args()
 
+    questions = _build_question_list(args)
+    print(f"Running {len(questions)} questions")
+
     model = load_model()
-
-    if args.quick:
-        questions = TEST_QUESTIONS[:3]
-    elif args.benchmark:
-        questions = TEST_QUESTIONS
-    else:
-        questions = TEST_QUESTIONS
-
     run_benchmark(model, questions, args.output)
 
 

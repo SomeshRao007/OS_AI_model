@@ -19,6 +19,7 @@ from os_agent.agents.kernel import KernelAgent
 from os_agent.agents.network import NetworkAgent
 from os_agent.agents.packages import PackagesAgent
 from os_agent.agents.process import ProcessAgent
+from os_agent.eval_questions import ROUTING_TEST_CASES
 from os_agent.inference.engine import InferenceEngine
 from os_agent.inference.prompt import MASTER_CLASSIFY_PROMPT
 from os_agent.memory.agent_memory import AgentMemory
@@ -187,59 +188,9 @@ class MasterAgent:
 
 
 # ── Test infrastructure ──────────────────────────────────────────────────
-# Expected routing for our 5-domain architecture (44 questions)
-
-_TEST_CASES: list[tuple[str, str]] = [
-    # files domain (6 original + 4 text + 4 storage + 4 scripting = 18)
-    ("Find all files larger than 100MB on Linux", "files"),
-    ("Find files modified in the last 24 hours in /var/log", "files"),
-    ("Recursively search for the string 'ERROR' in all .log files under /var", "files"),
-    ("What does chmod 755 do and when would you use it?", "files"),
-    ("How do I change the owner of a directory and all its contents?", "files"),
-    ("How do I create a symbolic link?", "files"),
-    ("How do I extract the 3rd column from a space-separated file using awk?", "files"),
-    ("How do I replace all occurrences of 'foo' with 'bar' in a file using sed?", "files"),
-    ("How do I count lines, words, and characters in a file?", "files"),
-    ("How do I sort a file and remove duplicate lines?", "files"),
-    ("How do I mount a USB drive on Linux?", "files"),
-    ("How do I check available disk space on all mounted filesystems?", "files"),
-    ("How do I create a compressed tar.gz archive of a directory?", "files"),
-    ("How do I find and delete files older than 30 days?", "files"),
-    ("Write a bash script that checks if a file exists and prints a message", "files"),
-    ("How do I loop over all .log files in a directory in bash?", "files"),
-    ("How do I capture the output of a command into a variable in bash?", "files"),
-    ("How do I pass arguments to a bash script and validate them?", "files"),
-    # network domain (7)
-    ("List all open TCP ports on the system", "network"),
-    ("Generate an SSH key pair and add it to authorized_keys", "network"),
-    ("How do I copy a file to a remote server using SCP?", "network"),
-    ("How do I check my current IP address on Linux?", "network"),
-    ("How do I test if a remote port is open without telnet?", "network"),
-    ("How do I block port 22 with iptables?", "network"),
-    ("How do I use rsync to sync a local folder to a remote server?", "network"),
-    # process domain (6 original + 4 users + 2 systemd = 12)
-    ("How do I check disk usage broken down by directory?", "process"),
-    ("How do I kill a process by name without knowing its PID?", "process"),
-    ("Show me how to find which process is using the most memory", "process"),
-    ("How do I run a process in the background and keep it after SSH logout?", "process"),
-    ("How do I schedule a cron job to run a script every day at midnight?", "process"),
-    ("How do I check CPU and memory usage in real time?", "process"),
-    ("How do I add a user to the sudo group?", "process"),
-    ("How do I create a new user with a home directory?", "process"),
-    ("How do I lock a user account without deleting it?", "process"),
-    ("How do I view all groups a user belongs to?", "process"),
-    ("How do I start, stop, and restart a systemd service?", "process"),
-    ("How do I check if a service is enabled on boot with systemd?", "process"),
-    # packages domain (2)
-    ("How do I install a .deb package manually?", "packages"),
-    ("How do I find which package owns a specific file on Debian/Ubuntu?", "packages"),
-    # kernel domain (5)
-    ("What is a Linux kernel module and how do you load one?", "kernel"),
-    ("Explain the difference between a process and a thread in Linux", "kernel"),
-    ("How does virtual memory paging work in Linux?", "kernel"),
-    ("What is the purpose of the /proc filesystem?", "kernel"),
-    ("How do I check the current kernel version and build info?", "kernel"),
-]
+# Expected routing for our 5-domain architecture (150 questions)
+# Imported from eval_questions.py — single source of truth.
+_TEST_CASES: list[tuple[str, str]] = ROUTING_TEST_CASES
 
 
 def _run_test_keywords():
@@ -326,7 +277,7 @@ def _run_test_routing(engine: InferenceEngine):
     print(f"\nRouting accuracy: {correct}/{total} ({pct:.1f}%)")
     print(f"  Keyword resolved: {keyword_resolved}")
     print(f"  Model resolved:   {model_resolved}")
-    print(f"  Target: >= 90% (40/44)")
+    print(f"  Target: >= 90% ({int(total * 0.9)}/{total})")
 
     if failures:
         print(f"\nFailures ({len(failures)}):")
