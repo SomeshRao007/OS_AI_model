@@ -4,3 +4,6 @@
 
 llama-cpp-python>=0.3.18
 pyyaml>=6.0
+faiss-cpu>=1.7.4
+sentence-transformers>=2.2.0
+prompt_toolkit>=3.0.0
