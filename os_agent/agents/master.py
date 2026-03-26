@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import re
 import sys
+from pathlib import Path
+
+import yaml
 
 from os_agent.agents.base import AgentResponse, BaseAgent
 from os_agent.agents.files import FilesAgent
@@ -18,6 +21,12 @@ from os_agent.agents.packages import PackagesAgent
 from os_agent.agents.process import ProcessAgent
 from os_agent.inference.engine import InferenceEngine
 from os_agent.inference.prompt import MASTER_CLASSIFY_PROMPT
+from os_agent.memory.agent_memory import AgentMemory
+from os_agent.memory.session import SessionContext
+from os_agent.memory.shared_state import SharedState
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_CONFIG_PATH = _PROJECT_ROOT / "os_agent" / "config" / "daemon.yaml"
 
 # ── Keyword sets per domain ──────────────────────────────────────────────
 # Each set contains words that strongly signal a domain.
@@ -72,18 +81,45 @@ _WORD_SPLIT = re.compile(r"[^a-z0-9]+")
 class MasterAgent:
     """Routes user queries to the appropriate domain specialist.
 
-    Owns the shared InferenceEngine and all specialist agents.
+    Owns the shared InferenceEngine, all specialist agents, and the
+    three-tier memory system (shared state, per-domain FAISS, session).
     """
 
-    def __init__(self, engine: InferenceEngine):
+    def __init__(self, engine: InferenceEngine, config: dict | None = None):
         self._engine = engine
+
+        if config is None:
+            config = self._load_config()
+        mem_cfg = config.get("memory", {})
+        state_dir = mem_cfg.get("state_dir", "~/.local/share/ai-daemon")
+        faiss_dims = mem_cfg.get("faiss_dims", 384)
+        max_vectors = mem_cfg.get("max_vectors_per_domain", 500)
+
+        self._shared_state = SharedState(state_dir)
+        self._session = SessionContext()
+
+        def _mem(domain: str) -> AgentMemory:
+            return AgentMemory(domain, state_dir, faiss_dims, max_vectors)
+
         self._agents: dict[str, BaseAgent] = {
-            "files": FilesAgent(),
-            "network": NetworkAgent(),
-            "process": ProcessAgent(),
-            "packages": PackagesAgent(),
-            "kernel": KernelAgent(),
+            "files": FilesAgent(memory=_mem("files")),
+            "network": NetworkAgent(memory=_mem("network")),
+            "process": ProcessAgent(memory=_mem("process")),
+            "packages": PackagesAgent(memory=_mem("packages")),
+            "kernel": KernelAgent(memory=_mem("kernel")),
         }
+
+    def get_agent(self, domain: str) -> BaseAgent:
+        """Return the specialist agent for the given domain."""
+        return self._agents[domain]
+
+    @property
+    def shared_state(self) -> SharedState:
+        return self._shared_state
+
+    @property
+    def session(self) -> SessionContext:
+        return self._session
 
     def classify(self, query: str) -> str:
         """Return the domain name for a query. Keywords first, model fallback."""
@@ -93,10 +129,23 @@ class MasterAgent:
         return self._classify_by_model(query)
 
     def route(self, query: str) -> AgentResponse:
-        """Classify and delegate to the appropriate specialist."""
+        """Classify, delegate, and update memory tiers."""
         domain = self.classify(query)
         agent = self._agents[domain]
-        return agent.handle(query, self._engine)
+        result = agent.handle(query, self._engine)
+
+        self._session.add_turn(
+            query, domain, result.response, result.memory_hits,
+        )
+        self._shared_state.log_action(domain, query, result.response[:100])
+
+        return result
+
+    @staticmethod
+    def _load_config() -> dict:
+        if _CONFIG_PATH.exists():
+            return yaml.safe_load(_CONFIG_PATH.read_text()) or {}
+        return {}
 
     def _classify_by_keywords(self, query: str) -> str | None:
         """Stage 1: fast keyword matching. Returns domain or None if ambiguous."""

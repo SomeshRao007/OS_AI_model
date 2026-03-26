@@ -25,9 +25,10 @@ def main():
         sys.exit(1)
 
     # Default: launch neurosh shell
-    print("neurosh shell not implemented yet (Step 6)")
-    print("Use: python os_agent/test_inference.py --quick  (to verify inference)")
-    sys.exit(0)
+    from os_agent.shell import NeuroshShell
+
+    shell = NeuroshShell()
+    shell.run()
 
 
 if __name__ == "__main__":
