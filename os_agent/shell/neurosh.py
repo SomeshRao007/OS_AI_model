@@ -28,7 +28,6 @@ from os_agent.shell.history import ShellHistory
 from os_agent.shell.modes import ModeManager, ShellMode
 from os_agent.shell.renderer import Renderer, NEUROSH_STYLE
 from os_agent.tools.executor import SandboxedExecutor, RiskLevel
-from os_agent.tools.parser import extract_command
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _CONFIG_PATH = _PROJECT_ROOT / "os_agent" / "config" / "daemon.yaml"
@@ -206,18 +205,26 @@ class NeuroshShell:
 
             # Collect response silently (don't stream raw markdown to terminal)
             try:
-                full_response = self._engine.infer(prompt, raw)
+                result = self._engine.infer_validated(prompt, raw)
             except KeyboardInterrupt:
                 self._renderer.print_info("(cancelled)")
                 return
+
+            # Validator blocked the command before execution
+            if result["blocked"]:
+                print(f"\n[VALIDATOR] {result['error']}")
+                if result["suggestion"]:
+                    print(f"[SUGGESTION] {result['suggestion']}")
+                return
+
+            full_response = result["response"]
+            command = result["command"]
 
             # Handle empty model response
             if not full_response or not full_response.strip():
                 self._renderer.print_info("(no response from model)")
                 return
 
-            # Extract command from model response
-            command = extract_command(full_response)
             if not command:
                 # Pure text response (conceptual answer) — print it
                 print(full_response.strip())

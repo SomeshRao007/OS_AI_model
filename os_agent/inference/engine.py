@@ -149,6 +149,53 @@ class InferenceEngine:
             if cleaned:
                 yield cleaned
 
+    def infer_with_rag(
+        self, system_prompt: str, query: str, max_tokens: int | None = None
+    ) -> str:
+        """Run inference with RAG context injected into system_prompt.
+
+        Detects the command the query is about and appends a one-line flag
+        summary to the system prompt before calling infer(). This gives the
+        model ground-truth flag information without changing anything else.
+        """
+        from os_agent.inference.rag import build_rag_context
+
+        rag_ctx = build_rag_context(query)
+        if rag_ctx:
+            system_prompt = system_prompt + f"\n\nCOMMAND REFERENCE: {rag_ctx}"
+        return self.infer(system_prompt, query, max_tokens)
+
+    def infer_validated(
+        self, system_prompt: str, query: str, max_tokens: int | None = None
+    ) -> dict:
+        """Run RAG-augmented inference then validate the extracted command.
+
+        Returns a dict with keys:
+          - response (str): full model response
+          - command (str | None): extracted bash command, or None
+          - blocked (bool): True if validator blocked the command
+          - error (str): validation error message (only when blocked=True)
+          - suggestion (str): fix hint (only when blocked=True)
+        """
+        from os_agent.tools.parser import extract_command
+        from os_agent.inference.validator import validate
+
+        response = self.infer_with_rag(system_prompt, query, max_tokens)
+        command = extract_command(response)
+
+        if command:
+            result = validate(command)
+            if not result["ok"]:
+                return {
+                    "response": response,
+                    "command": command,
+                    "blocked": True,
+                    "error": result["error"],
+                    "suggestion": result.get("suggestion", ""),
+                }
+
+        return {"response": response, "command": command, "blocked": False}
+
     def get_vram_usage(self) -> dict[str, int]:
         """Return current VRAM stats: {used, total, free} in MB."""
         result = subprocess.run(
