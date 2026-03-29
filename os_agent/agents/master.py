@@ -19,7 +19,6 @@ from os_agent.agents.kernel import KernelAgent
 from os_agent.agents.network import NetworkAgent
 from os_agent.agents.packages import PackagesAgent
 from os_agent.agents.process import ProcessAgent
-from os_agent.eval_questions import ROUTING_TEST_CASES
 from os_agent.inference.engine import InferenceEngine
 from os_agent.inference.prompt import MASTER_CLASSIFY_PROMPT
 from os_agent.memory.agent_memory import AgentMemory
@@ -189,8 +188,17 @@ class MasterAgent:
 
 # ── Test infrastructure ──────────────────────────────────────────────────
 # Expected routing for our 5-domain architecture (150 questions)
-# Imported from eval_questions.py — single source of truth.
-_TEST_CASES: list[tuple[str, str]] = ROUTING_TEST_CASES
+# Lazy-loaded from eval_questions.py — not imported at module level so
+# the shell can start without the test data file present.
+_TEST_CASES: list[tuple[str, str]] | None = None
+
+
+def _get_test_cases() -> list[tuple[str, str]]:
+    global _TEST_CASES
+    if _TEST_CASES is None:
+        from os_agent.Agent_benchmark_testing.eval_questions import ROUTING_TEST_CASES
+        _TEST_CASES = ROUTING_TEST_CASES
+    return _TEST_CASES
 
 
 def _run_test_keywords():
@@ -205,7 +213,7 @@ def _run_test_keywords():
     resolved = 0
     needs_model = []
 
-    for question, expected in _TEST_CASES:
+    for question, expected in _get_test_cases():
         words = set(_WORD_SPLIT.split(question.lower()))
         scores = {}
         for domain, keywords in _DOMAIN_KEYWORDS.items():
@@ -233,7 +241,7 @@ def _run_test_keywords():
             marker = "WRONG" if result != expected else "OK"
             print(f"  {marker:5s}  exp={expected:10s} got={result:10s}  scores={scores}  <- {question[:55]}")
 
-    total = len(_TEST_CASES)
+    total = len(_get_test_cases())
     print(f"\nKeyword resolved: {resolved}/{total} ({resolved/total*100:.1f}%)")
     print(f"Needs model fallback: {len(needs_model)}/{total}")
     if needs_model:
@@ -254,7 +262,7 @@ def _run_test_routing(engine: InferenceEngine):
     model_resolved = 0
     failures = []
 
-    for question, expected in _TEST_CASES:
+    for question, expected in _get_test_cases():
         # Check if keywords would resolve it
         kw_result = master._classify_by_keywords(question)
         predicted = master.classify(question)
@@ -272,7 +280,7 @@ def _run_test_routing(engine: InferenceEngine):
             failures.append((question, expected, predicted, method))
             print(f"  FAIL  [{method:7s}] exp={expected:10s} got={predicted:10s} <- {question[:55]}")
 
-    total = len(_TEST_CASES)
+    total = len(_get_test_cases())
     pct = correct / total * 100
     print(f"\nRouting accuracy: {correct}/{total} ({pct:.1f}%)")
     print(f"  Keyword resolved: {keyword_resolved}")
@@ -297,7 +305,7 @@ def _run_test_model(engine: InferenceEngine):
     correct = 0
     failures = []
 
-    for question, expected in _TEST_CASES:
+    for question, expected in _get_test_cases():
         raw = engine.infer(MASTER_CLASSIFY_PROMPT, question, max_tokens=512)
         parsed = raw.strip().lower().split()[0] if raw.strip() else "(empty)"
 
@@ -308,7 +316,7 @@ def _run_test_model(engine: InferenceEngine):
             failures.append((question, expected, parsed, raw.strip()))
             print(f"  FAIL  exp={expected:10s} got={parsed:10s} raw={raw.strip()!r:15s} <- {question[:50]}")
 
-    total = len(_TEST_CASES)
+    total = len(_get_test_cases())
     pct = correct / total * 100
     print(f"\nModel classification accuracy: {correct}/{total} ({pct:.1f}%)")
 
