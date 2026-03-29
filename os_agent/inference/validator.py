@@ -28,6 +28,13 @@ _help_db: dict | None = None
 # Non-Debian package managers — warn if seen on a Debian/Ubuntu system.
 _REDHAT_PKG_MANAGERS = frozenset({"dnf", "yum", "rpm", "zypper", "pacman", "emerge", "xbps-install"})
 
+# Commands with hand-curated, COMPLETE flag schemas (from OVERRIDES in build_help_db.py).
+# Unknown-flag blocking (rule 2) only runs for these. Auto-parsed --help schemas are
+# incomplete so blocking unknown flags there causes false positives on valid commands.
+_CURATED_COMMANDS = frozenset({
+    "ssh-keygen", "nohup", "find", "chage", "useradd", "wc", "gdb", "perf",
+})
+
 
 def _load_db() -> dict:
     global _help_db
@@ -41,17 +48,23 @@ def _load_db() -> dict:
 
 
 def infer_arg_type(arg: str) -> str:
-    """Classify an argument string: email | filepath | number | string."""
+    """Classify an argument string: email | filepath | number | string.
+
+    Filepath check runs before email so that paths like ~/.ssh/user@host.com
+    (which the model often generates when it knows -f needs a filepath) are
+    correctly classified as filepath rather than email.
+    """
     if not arg:
         return "string"
-    # Email: user@domain.tld
-    if re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", arg):
-        return "email"
-    # Filepath: starts with /, ~, ./, ../ or contains a path separator
+    # Filepath first: must precede email check because model-generated paths
+    # can contain @ (e.g. ~/.ssh/user@host.com) and are still filepaths.
     if arg.startswith(("/", "~", "./", "../")) or (
         "/" in arg and not arg.startswith("-")
     ):
         return "filepath"
+    # Email: user@domain.tld (only reached if not a filepath)
+    if re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", arg):
+        return "email"
     # Number: integer with optional leading sign
     if re.match(r"^[+-]?\d+$", arg):
         return "number"
@@ -179,11 +192,11 @@ def validate(bash_command: str) -> dict:
                 "suggestion": suggestion,
             }
 
-        # ── Rule 2: unknown flag ─────────────────────────────────────────
-        # For commands with empty flags dict (e.g. nohup), any flag is unknown.
-        # For commands with a populated schema, flag must be in it.
-        if flags_schema is not None and flag not in flags_schema:
-            # Build suggestion from valid flags that have hints
+        # ── Rule 2: unknown flag (curated commands only) ─────────────────
+        # Only block unknown flags for commands with complete hand-curated schemas.
+        # Auto-parsed --help schemas are incomplete — enforcing them causes false
+        # positives on valid flags that --help parsing simply missed.
+        if cmd_name in _CURATED_COMMANDS and flag not in flags_schema:
             candidates = [
                 f"{f} ({info.get('hint', '')})"
                 for f, info in flags_schema.items()

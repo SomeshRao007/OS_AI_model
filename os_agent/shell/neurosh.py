@@ -49,6 +49,17 @@ _BASH_STARTERS: frozenset[str] = frozenset(
 )
 
 
+# Commands that are also common English words. For these, _looks_like_bash
+# requires the second token to look like a real bash argument before routing
+# as a terminal command — prevents NL queries like "find files modified..." or
+# "sort the output by size" from being sent to the terminal instead of the AI.
+_AMBIGUOUS_COMMANDS: frozenset[str] = frozenset({
+    "find", "sort", "cut", "head", "tail", "file", "host", "free",
+    "diff", "stat", "watch", "kill", "cat", "mount", "rm", "top",
+    "who", "id", "su", "more", "less",
+})
+
+
 class NeuroshShell:
     """Interactive AI-powered shell with terminal, chatbot, and AI modes."""
 
@@ -302,14 +313,35 @@ class NeuroshShell:
             self._renderer.print_error("Something went wrong processing your query.")
 
     def _looks_like_bash(self, raw: str) -> bool:
-        """Heuristic: does the input start with a known command name?"""
+        """Heuristic: does the input start with a known command name?
+
+        For commands that are also plain English words (find, sort, kill, etc.),
+        requires the second token to look like a bash argument (a flag starting
+        with -, a path starting with / ~ . , or a digit) before classifying as bash.
+        This prevents natural language queries like "find files modified in the last
+        24 hours" from being routed to the terminal instead of the AI.
+        """
         parts = raw.split()
         if not parts:
             return False
         first = parts[0]
-        # Strip path prefix (e.g., /usr/bin/ls -> ls)
         basename = first.split("/")[-1]
-        return basename in _BASH_STARTERS
+        if basename not in _BASH_STARTERS:
+            return False
+
+        # Commands that double as English words need a bash-looking second token.
+        if basename in _AMBIGUOUS_COMMANDS and len(parts) > 1:
+            second = parts[1]
+            if not (
+                second.startswith("-")
+                or second.startswith("/")
+                or second.startswith("~")
+                or second.startswith(".")
+                or second[0].isdigit()
+            ):
+                return False
+
+        return True
 
     @staticmethod
     def _is_cd_command(raw: str) -> bool:
