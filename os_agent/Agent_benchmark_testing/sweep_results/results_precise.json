@@ -1,0 +1,603 @@
+{
+  "config": "precise",
+  "params": {
+    "temperature": 0.3,
+    "top_p": 0.9,
+    "top_k": 10,
+    "n_ctx": 4096,
+    "num_predict": 1024
+  },
+  "questions": 44,
+  "total_tokens": 1890,
+  "avg_tok_s": 70.0,
+  "warm_avg_tok_s": 70.1,
+  "vram_peak_mb": 3891,
+  "rag_hits": 5,
+  "validator_blocks": 2,
+  "validator_warns": 7,
+  "results": [
+    {
+      "question": "Find all files larger than 100MB on Linux",
+      "domain": "files",
+      "response": "```bash\nfind / -size +100M -type f\n```",
+      "tokens": 21,
+      "tok_per_sec": 64.0,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "find / -size +100M -type f",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "Find files modified in the last 24 hours in /var/log",
+      "domain": "files",
+      "response": "```bash\nfind /var/log -type f -mtime -1 -exec ls -lh {} \\;\n```",
+      "tokens": 28,
+      "tok_per_sec": 64.3,
+      "vram_mb": 3891,
+      "rag_context": "find: -name  -type f/d  -size +NNM  -mtime  -perm /MODE  -exec CMD {} \\;",
+      "command": "find /var/log -type f -mtime -1 -exec ls -lh {} \\;",
+      "validator": {
+        "ok": false,
+        "error": "find: unknown flag -1",
+        "suggestion": "Known flags: -size (e.g. +100M, -1k), -mtime (days; -1 = last 24h)"
+      }
+    },
+    {
+      "question": "Recursively search for the string 'ERROR' in all .log files under /var",
+      "domain": "files",
+      "response": "```bash\nfind /var -name '*.log' -exec grep -H 'ERROR' {} \\;\n```",
+      "tokens": 28,
+      "tok_per_sec": 67.0,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "find /var -name '*.log' -exec grep -H 'ERROR' {} \\;",
+      "validator": {
+        "ok": false,
+        "error": "find: unknown flag -H",
+        "suggestion": "Known flags: -size (e.g. +100M, -1k), -mtime (days; -1 = last 24h)"
+      }
+    },
+    {
+      "question": "What does chmod 755 do and when would you use it?",
+      "domain": "files",
+      "response": "```bash\nchmod 755 /path/to/script.sh\n```\nSets read, write, and execute permissions for the owner; read and execute for group and others; commonly used for executable scripts so anyone can run them.",
+      "tokens": 51,
+      "tok_per_sec": 71.6,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "chmod 755 /path/to/script.sh",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I change the owner of a directory and all its contents?",
+      "domain": "files",
+      "response": "```bash\nsudo chown -R new_owner:group /path/to/directory\n```\nRecursively changes ownership of the directory and all files/subdirectories within it to the specified user and group.",
+      "tokens": 45,
+      "tok_per_sec": 71.1,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "sudo chown -R new_owner:group /path/to/directory",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I create a symbolic link?",
+      "domain": "files",
+      "response": "```bash\nln -s /path/to/source /path/to/destination\n```\nCreates a symbolic link named \"destination\" that points to \"source\", allowing the target file or directory to be accessed through the new link.",
+      "tokens": 50,
+      "tok_per_sec": 71.7,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "ln -s /path/to/source /path/to/destination",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "List all open TCP ports on the system",
+      "domain": "networking",
+      "response": "```bash\nss -tlnp | grep LISTEN\n```\nDisplays all listening TCP sockets with their associated processes and port numbers.",
+      "tokens": 32,
+      "tok_per_sec": 69.0,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "ss -tlnp | grep LISTEN",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "Generate an SSH key pair and add it to authorized_keys",
+      "domain": "networking",
+      "response": "```bash\nssh-keygen -t ed25519 -f ~/.ssh/id_ed25519\n```\nGenerates an Ed25519 SSH key pair and saves the private key to `~/.ssh/id_ed25519` and the public key to `~/.ssh/id_ed25519.pub`.",
+      "tokens": 80,
+      "tok_per_sec": 72.9,
+      "vram_mb": 3891,
+      "rag_context": "ssh-keygen: -t keytype  -b bits  -C comment(string/email)  -f output_filepath  -N passphrase",
+      "command": "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I copy a file to a remote server using SCP?",
+      "domain": "networking",
+      "response": "```bash\nscp /home/user/documents/report.pdf user@remote-server:/home/user/documents/\n```\nCopies the report.pdf file from your local machine to the specified remote server directory.",
+      "tokens": 43,
+      "tok_per_sec": 70.6,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "scp /home/user/documents/report.pdf user@remote-server:/home/user/documents/",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I check my current IP address on Linux?",
+      "domain": "networking",
+      "response": "```bash\nip addr show | grep 'inet '\n```\nDisplays all IPv4 addresses assigned to your network interfaces, filtering out the local loopback address.",
+      "tokens": 37,
+      "tok_per_sec": 68.6,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "ip addr show | grep 'inet '",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I test if a remote port is open without telnet?",
+      "domain": "networking",
+      "response": "```bash\nnc -zv 192.168.1.100 22\n```\nThis uses netcat to send a quick SYN packet and checks if port 22 responds, confirming connectivity without establishing a full connection.",
+      "tokens": 57,
+      "tok_per_sec": 72.3,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "nc -zv 192.168.1.100 22",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I block port 22 with iptables?",
+      "domain": "networking",
+      "response": "```bash\nsudo iptables -P INPUT DROP\n```\nSets the default policy for the INPUT chain to drop all packets, effectively blocking all incoming traffic unless explicitly allowed.",
+      "tokens": 39,
+      "tok_per_sec": 70.1,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "sudo iptables -P INPUT DROP",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I use rsync to sync a local folder to a remote server?",
+      "domain": "networking",
+      "response": "```bash\nrsync -avz /home/user/documents/ user@remote-server:/home/user/documents/\n```",
+      "tokens": 28,
+      "tok_per_sec": 65.8,
+      "vram_mb": 3891,
+      "rag_context": "rsync: --verbose --info enum --debug string --stderr --quiet --no-motd --checksum --archive",
+      "command": "rsync -avz /home/user/documents/ user@remote-server:/home/user/documents/",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I check disk usage broken down by directory?",
+      "domain": "process",
+      "response": "```bash\ndu -h --max-depth=1 /home\n```\nDisplays disk usage for the /home directory and its immediate subdirectories in human-readable format.",
+      "tokens": 38,
+      "tok_per_sec": 70.1,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "du -h --max-depth=1 /home",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I kill a process by name without knowing its PID?",
+      "domain": "process",
+      "response": "```bash\nkillall nginx\n```\nThe `killall` command sends a signal to all processes matching the given name, allowing termination without knowing their PIDs.",
+      "tokens": 38,
+      "tok_per_sec": 70.1,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "killall nginx",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "Show me how to find which process is using the most memory",
+      "domain": "process",
+      "response": "```bash\nlsof | awk '{sum+=$6} END {print sum}'\n```\nSums up the memory usage (column 6) for all processes to show total system memory consumption.",
+      "tokens": 47,
+      "tok_per_sec": 70.2,
+      "vram_mb": 3891,
+      "rag_context": "lsof: -c -d -i -n -O -R -T -V",
+      "command": "lsof | awk '{sum+=$6} END {print sum}'",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I run a process in the background and keep it after SSH logout?",
+      "domain": "process",
+      "response": "```bash\nnohup myapp > /tmp/app.log 2>&1 &\n```\nThe `nohup` command prevents the process from being terminated when the shell exits, and redirection ensures output is saved to a file.",
+      "tokens": 53,
+      "tok_per_sec": 71.6,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "nohup myapp > /tmp/app.log 2>&1 &",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I schedule a cron job to run a script every day at midnight?",
+      "domain": "process",
+      "response": "```bash\necho '0 0 * * * /home/admin/backup.sh' | sudo tee -a /etc/cron.d/backup\n```",
+      "tokens": 36,
+      "tok_per_sec": 69.0,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "echo '0 0 * * * /home/admin/backup.sh' | sudo tee -a /etc/cron.d/backup",
+      "validator": {
+        "ok": true,
+        "warn": "echo: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I check CPU and memory usage in real time?",
+      "domain": "process",
+      "response": "```bash\nmpstat -P ALL 1 1\n```\nDisplays per-CPU statistics every 1 second for 1 iteration, showing CPU usage breakdown by process.",
+      "tokens": 40,
+      "tok_per_sec": 70.5,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "mpstat -P ALL 1 1",
+      "validator": {
+        "ok": true,
+        "warn": "mpstat: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I add a user to the sudo group?",
+      "domain": "users",
+      "response": "```bash\nsudo usermod -aG sudo jsmith\n```\nAdds the user `jsmith` to the sudo group, granting them sudo privileges without removing their original group memberships.",
+      "tokens": 42,
+      "tok_per_sec": 70.7,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "sudo usermod -aG sudo jsmith",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I create a new user with a home directory?",
+      "domain": "users",
+      "response": "```bash\nuseradd -m jsmith\n```\nThe `-m` flag automatically creates a home directory for the new user `jsmith` and sets its permissions.",
+      "tokens": 39,
+      "tok_per_sec": 70.3,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "useradd -m jsmith",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I lock a user account without deleting it?",
+      "domain": "users",
+      "response": "```bash\npasswd -l jsmith\n```\nLocks the user account by setting a password to 'L' in the password field, preventing login while keeping the account usable for administrative tasks.",
+      "tokens": 44,
+      "tok_per_sec": 70.8,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "passwd -l jsmith",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I view all groups a user belongs to?",
+      "domain": "users",
+      "response": "```bash\ngroups username\n```\nDisplays all groups that the specified user belongs to, including both primary and supplementary groups.",
+      "tokens": 29,
+      "tok_per_sec": 68.1,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "groups username",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I install a .deb package manually?",
+      "domain": "packages",
+      "response": "```bash\nsudo dpkg -i /path/to/package.deb\n```\nInstalls a Debian package file directly without using the apt package manager. You may need to run `sudo apt-get install -f` afterward to resolve any dependency issues.",
+      "tokens": 54,
+      "tok_per_sec": 72.0,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "sudo dpkg -i /path/to/package.deb",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I start, stop, and restart a systemd service?",
+      "domain": "packages",
+      "response": "```bash\nsudo systemctl start nginx\n```\nStarts the nginx service using systemd; use `stop` to halt it and `restart` to stop then start again.",
+      "tokens": 39,
+      "tok_per_sec": 70.2,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "sudo systemctl start nginx",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I check if a service is enabled on boot with systemd?",
+      "domain": "packages",
+      "response": "```bash\nsystemctl is-enabled nginx\n```\nThis command returns \"enabled\" if the nginx service is configured to start automatically at boot, \"disabled\" otherwise, or \"not-found\" if the service doesn't exist.",
+      "tokens": 50,
+      "tok_per_sec": 71.6,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "systemctl is-enabled nginx",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I find which package owns a specific file on Debian/Ubuntu?",
+      "domain": "packages",
+      "response": "```bash\ndpkg -S /etc/hostname\n```\nThis command queries the dpkg database to identify which installed package is responsible for managing the specified file.",
+      "tokens": 38,
+      "tok_per_sec": 69.6,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "dpkg -S /etc/hostname",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I extract the 3rd column from a space-separated file using awk?",
+      "domain": "text",
+      "response": "```bash\nawk '{print $3}' /path/to/your/file.txt\n```",
+      "tokens": 22,
+      "tok_per_sec": 64.6,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "awk '{print $3}' /path/to/your/file.txt",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I replace all occurrences of 'foo' with 'bar' in a file using sed?",
+      "domain": "text",
+      "response": "```bash\nsed 's/foo/bar/g' file.txt\n```\nThe `g` flag tells sed to replace all occurrences of 'foo' on each line, not just the first one.",
+      "tokens": 44,
+      "tok_per_sec": 70.4,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "sed 's/foo/bar/g' file.txt",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I count lines, words, and characters in a file?",
+      "domain": "text",
+      "response": "```bash\nwc -l -w -c /path/to/file\n```\nCounts lines, words, and characters in the file using the `-l`, `-w`, and `-c` flags respectively.",
+      "tokens": 46,
+      "tok_per_sec": 68.7,
+      "vram_mb": 3891,
+      "rag_context": "wc: -l (lines)  -w (words)  -c (bytes)  -m (chars)  -L (longest line) — no -n flag",
+      "command": "wc -l -w -c /path/to/file",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I sort a file and remove duplicate lines?",
+      "domain": "text",
+      "response": "```bash\nsort -u /path/to/your/file.txt\n```\nThe `sort` command with the `-u` flag sorts lines alphabetically and removes duplicate entries in a single operation.",
+      "tokens": 44,
+      "tok_per_sec": 70.7,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "sort -u /path/to/your/file.txt",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I mount a USB drive on Linux?",
+      "domain": "storage",
+      "response": "```bash\nsudo mount /dev/sdb1 /mnt/usb\n```\nThis mounts the USB drive at the specified mount point. Replace `/dev/sdb1` with your actual USB device identifier and `/mnt/usb` with your desired mount location.",
+      "tokens": 57,
+      "tok_per_sec": 72.3,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "sudo mount /dev/sdb1 /mnt/usb",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I check available disk space on all mounted filesystems?",
+      "domain": "storage",
+      "response": "```bash\ndf -h\n```\nDisplays disk space usage in human-readable format for all mounted filesystems, showing total, used, available, and usage percentage.",
+      "tokens": 38,
+      "tok_per_sec": 70.0,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "df -h",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I create a compressed tar.gz archive of a directory?",
+      "domain": "storage",
+      "response": "```bash\ntar -czvf backup.tar.gz /path/to/your/directory\n```\nThis command creates a compressed tar.gz archive of the specified directory, saving it with the filename `backup.tar.gz`.",
+      "tokens": 47,
+      "tok_per_sec": 70.9,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "tar -czvf backup.tar.gz /path/to/your/directory",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I find and delete files older than 30 days?",
+      "domain": "storage",
+      "response": "```bash\nfind /path/to/directory -mtime +30 -exec rm {} \\;\n```\nThis command searches for files modified more than 30 days ago in the specified directory and deletes them.",
+      "tokens": 48,
+      "tok_per_sec": 71.3,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "find /path/to/directory -mtime +30 -exec rm {} \\;",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "What is a Linux kernel module and how do you load one?",
+      "domain": "kernel",
+      "response": "```bash\nmodprobe <module_name>\n```\nThis command loads a kernel module into the running kernel, making its functionality available immediately. The module name must match the actual module filename without the .ko extension.",
+      "tokens": 48,
+      "tok_per_sec": 71.3,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "modprobe <module_name>",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "Explain the difference between a process and a thread in Linux",
+      "domain": "kernel",
+      "response": "```bash\nps -eLf | head -20\n```\nDisplays all processes and threads with their respective thread IDs (TID), showing that threads share the same process ID (PID) but have unique thread IDs.",
+      "tokens": 50,
+      "tok_per_sec": 71.7,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "ps -eLf | head -20",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How does virtual memory paging work in Linux?",
+      "domain": "kernel",
+      "response": "```bash\ncat /proc/vmstat | grep -E 'pgfault|pgmajfault'\n```\nDisplays page fault statistics showing minor faults (TLB hit) and major faults (page table access), which are fundamental to understanding how Linux handles virtual memory paging.",
+      "tokens": 60,
+      "tok_per_sec": 72.5,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "cat /proc/vmstat | grep -E 'pgfault|pgmajfault'",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "What is the purpose of the /proc filesystem?",
+      "domain": "kernel",
+      "response": "```bash\nls -la /proc\n```\nThe /proc filesystem provides a virtual file system interface to kernel data structures, exposing information about running processes, memory usage, network connections, and system parameters in a standardized format.",
+      "tokens": 50,
+      "tok_per_sec": 71.5,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "ls -la /proc",
+      "validator": {
+        "ok": true,
+        "warn": "ls: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I check the current kernel version and build info?",
+      "domain": "kernel",
+      "response": "```bash\nuname -r\n```\nDisplays the currently running kernel version, which is essential for verifying compatibility with installed modules and drivers.",
+      "tokens": 32,
+      "tok_per_sec": 68.4,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "uname -r",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "Write a bash script that checks if a file exists and prints a message",
+      "domain": "scripting",
+      "response": "```bash\n#!/bin/bash\nfile=\"config.txt\"\nif [[ -f \"$file\" ]]; then\n    echo \"File exists\"\nelse\n    echo \"File does not exist\"\nfi\n```",
+      "tokens": 48,
+      "tok_per_sec": 71.4,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "#!/bin/bash\nfile=\"config.txt\"\nif [[ -f \"$file\" ]]; then\n    echo \"File exists\"\nelse\n    echo \"File does not exist\"\nfi",
+      "validator": {
+        "ok": true,
+        "warn": "bash: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I loop over all .log files in a directory in bash?",
+      "domain": "scripting",
+      "response": "```bash\nfor logfile in /path/to/dir/*.log; do echo \"$logfile\"; done\n```\nThis loops through all files matching the pattern *.log in the specified directory and prints each filename.",
+      "tokens": 45,
+      "tok_per_sec": 70.2,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "for logfile in /path/to/dir/*.log; do echo \"$logfile\"; done",
+      "validator": {
+        "ok": true,
+        "warn": "for: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I capture the output of a command into a variable in bash?",
+      "domain": "scripting",
+      "response": "```bash\nresult=$(ls -la)\n```\nCommand substitution `$(...)` captures the standard output of a command and assigns it to the variable `result`.",
+      "tokens": 38,
+      "tok_per_sec": 69.1,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "result=$(ls -la)",
+      "validator": {
+        "ok": true,
+        "warn": "result=$(ls: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I pass arguments to a bash script and validate them?",
+      "domain": "scripting",
+      "response": "```bash\n#!/bin/bash\nif [ $# -lt 2 ]; then echo \"Usage: $0 <file> <pattern>\"; exit 1; fi\ngrep \"$2\" \"$1\"\n```",
+      "tokens": 47,
+      "tok_per_sec": 71.1,
+      "vram_mb": 3891,
+      "rag_context": "",
+      "command": "#!/bin/bash\nif [ $# -lt 2 ]; then echo \"Usage: $0 <file> <pattern>\"; exit 1; fi\ngrep \"$2\" \"$1\"",
+      "validator": {
+        "ok": true,
+        "warn": "bash: not in help_db, skipping flag validation"
+      }
+    }
+  ]
+}
