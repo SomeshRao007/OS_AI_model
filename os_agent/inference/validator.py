@@ -160,11 +160,20 @@ def validate(bash_command: str) -> dict:
     flags_schema: dict = entry.get("flags", {})
     invalid_flags: list = entry.get("invalid_flags", [])
 
-    # Walk tokens, tracking (flag, arg_value) pairs
+    # Walk tokens, tracking (flag, arg_value) pairs.
+    # For find's -exec: skip everything between -exec and \; or + (belongs to subcommand).
     seen_flags: list[str] = []
     i = 0
     while i < len(args):
         token = args[i]
+
+        # Skip -exec ... \; blocks — flags inside belong to the subcommand, not find
+        if cmd_name == "find" and token in ("-exec", "-execdir", "-ok"):
+            i += 1
+            while i < len(args) and args[i] not in (";", "\\;", "+"):
+                i += 1
+            i += 1  # skip the terminator itself
+            continue
 
         if not token.startswith("-"):
             i += 1
@@ -218,10 +227,15 @@ def validate(bash_command: str) -> dict:
 
         # Determine the flag's argument value
         if arg_val is None and expects is not None:
-            # Consume next token as argument if it doesn't start with -
-            if i + 1 < len(args) and not args[i + 1].startswith("-"):
-                arg_val = args[i + 1]
-                i += 1  # consume the arg token
+            # Consume next token as argument if it doesn't look like a flag.
+            # Allow negative numbers (-1, -30) — they start with - but are values
+            # (e.g. find -mtime -1 means "modified in the last 24 hours").
+            if i + 1 < len(args):
+                next_tok = args[i + 1]
+                is_negative_num = bool(re.match(r"^-\d+", next_tok))
+                if not next_tok.startswith("-") or is_negative_num:
+                    arg_val = next_tok
+                    i += 1  # consume the arg token
 
         # ── Rule 3: deprecated syntax ────────────────────────────────────
         # find -perm +NNN (old BSD syntax, removed in GNU findutils 4.5.12)
