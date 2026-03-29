@@ -1,0 +1,2009 @@
+{
+  "backend": "llama-cpp-python",
+  "model": "/home/somesh/Desktop/OS_AI_model/finetuning/q4_k_m-deploy/qwen3.5-4b-os-q4km.gguf",
+  "mode": "RAG + validator",
+  "params": {
+    "n_ctx": 1024,
+    "n_gpu_layers": -1,
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "top_k": 20,
+    "num_predict": 1024,
+    "stop": [
+      "<|im_end|>",
+      "<|endoftext|>"
+    ]
+  },
+  "avg_tok_s": 69.3,
+  "warm_avg_tok_s": 69.4,
+  "vram_peak_mb": 7183,
+  "rag_hits": 24,
+  "validator_blocks": 6,
+  "validator_warns": 22,
+  "results": [
+    {
+      "question": "Find all files larger than 100MB on Linux",
+      "domain": "files",
+      "response": "```bash\nfind / -size +100M\n```",
+      "tokens": 18,
+      "tok_per_sec": 55.1,
+      "vram_mb": 7179,
+      "rag_context": "",
+      "command": "find / -size +100M",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "Find files modified in the last 24 hours in /var/log",
+      "domain": "files",
+      "response": "```bash\nfind /var/log -type f -mtime 0 -exec ls -lh {} \\;\n```\nLocates only regular files modified within the last 24 hours and displays their sizes and permissions.",
+      "tokens": 49,
+      "tok_per_sec": 71.1,
+      "vram_mb": 7174,
+      "rag_context": "find: -name  -type f/d  -size +NNM  -mtime  -perm /MODE  -exec CMD {} \\;",
+      "command": "find /var/log -type f -mtime 0 -exec ls -lh {} \\;",
+      "validator": {
+        "ok": false,
+        "error": "find: unknown flag -lh",
+        "suggestion": "Known flags: -size (e.g. +100M, -1k), -mtime (days; -1 = last 24h)"
+      }
+    },
+    {
+      "question": "Recursively search for the string 'ERROR' in all .log files under /var",
+      "domain": "files",
+      "response": "```bash\nfind /var -name '*.log' -exec grep -Hn 'ERROR' {} +\n```",
+      "tokens": 28,
+      "tok_per_sec": 68.7,
+      "vram_mb": 7174,
+      "rag_context": "",
+      "command": "find /var -name '*.log' -exec grep -Hn 'ERROR' {} +",
+      "validator": {
+        "ok": false,
+        "error": "find: unknown flag -Hn",
+        "suggestion": "Known flags: -size (e.g. +100M, -1k), -mtime (days; -1 = last 24h)"
+      }
+    },
+    {
+      "question": "What does chmod 755 do and when would you use it?",
+      "domain": "files",
+      "response": "```bash\nchmod 755 /home/admin/public_html\n```\nSets read, write, and execute permissions for the owner, and read and execute for group and others—ideal for web directories where users need to access files but can't modify them.",
+      "tokens": 57,
+      "tok_per_sec": 72.0,
+      "vram_mb": 7167,
+      "rag_context": "",
+      "command": "chmod 755 /home/admin/public_html",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I change the owner of a directory and all its contents?",
+      "domain": "files",
+      "response": "```bash\nsudo chown -R new_owner:group /path/to/directory\n```\nRecursively changes the owner and group of a directory and all files and subdirectories within it.",
+      "tokens": 43,
+      "tok_per_sec": 69.4,
+      "vram_mb": 7166,
+      "rag_context": "",
+      "command": "sudo chown -R new_owner:group /path/to/directory",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I create a symbolic link?",
+      "domain": "files",
+      "response": "```bash\nln -s /target/path /link/path\n```\nCreates a symbolic link at `/link/path` pointing to `/target/path`, allowing the directory or file to be accessed through the new name while remaining independent of the original.",
+      "tokens": 53,
+      "tok_per_sec": 71.1,
+      "vram_mb": 7175,
+      "rag_context": "",
+      "command": "ln -s /target/path /link/path",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "List all open TCP ports on the system",
+      "domain": "networking",
+      "response": "```bash\nsudo ss -tlnp\n```\nDisplays all listening TCP sockets with their associated processes, showing which applications are using each port.",
+      "tokens": 34,
+      "tok_per_sec": 68.9,
+      "vram_mb": 7174,
+      "rag_context": "",
+      "command": "sudo ss -tlnp",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "Generate an SSH key pair and add it to authorized_keys",
+      "domain": "networking",
+      "response": "```bash\nssh-keygen -t rsa -b 4096 -C \"user@example.com\"\n```",
+      "tokens": 29,
+      "tok_per_sec": 67.6,
+      "vram_mb": 7174,
+      "rag_context": "ssh-keygen: -t keytype  -b bits  -C comment(string/email)  -f output_filepath  -N passphrase",
+      "command": "ssh-keygen -t rsa -b 4096 -C \"user@example.com\"",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I copy a file to a remote server using SCP?",
+      "domain": "networking",
+      "response": "```bash\nscp /home/user/document.pdf user@remote-server:/path/to/destination/\n```\nCopies the local file to the specified remote directory, prompting for a password if not already cached.",
+      "tokens": 46,
+      "tok_per_sec": 72.1,
+      "vram_mb": 7173,
+      "rag_context": "",
+      "command": "scp /home/user/document.pdf user@remote-server:/path/to/destination/",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I check my current IP address on Linux?",
+      "domain": "networking",
+      "response": "```bash\ncurl ifconfig.me\n```\nReturns your public IP address by querying a global IP lookup service.",
+      "tokens": 27,
+      "tok_per_sec": 67.0,
+      "vram_mb": 7174,
+      "rag_context": "",
+      "command": "curl ifconfig.me",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I test if a remote port is open without telnet?",
+      "domain": "networking",
+      "response": "```bash\nnc -zv example.com 443\n```\nThe nc utility with the `-z` flag performs a zero-I/O scan to test if a specific port is open without sending any data.",
+      "tokens": 47,
+      "tok_per_sec": 71.0,
+      "vram_mb": 7178,
+      "rag_context": "",
+      "command": "nc -zv example.com 443",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I block port 22 with iptables?",
+      "domain": "networking",
+      "response": "```bash\nsudo iptables -A INPUT -p tcp --dport 22 -j DROP\n```\nThis rule drops all incoming TCP packets destined for port 22, effectively blocking SSH access to the server.",
+      "tokens": 50,
+      "tok_per_sec": 70.2,
+      "vram_mb": 7176,
+      "rag_context": "",
+      "command": "sudo iptables -A INPUT -p tcp --dport 22 -j DROP",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I use rsync to sync a local folder to a remote server?",
+      "domain": "networking",
+      "response": "```bash\nrsync -avz --delete /home/user/documents/ user@server:/home/server/documents/\n```",
+      "tokens": 29,
+      "tok_per_sec": 67.2,
+      "vram_mb": 7175,
+      "rag_context": "rsync: --verbose --info enum --debug string --stderr --quiet --no-motd --checksum --archive",
+      "command": "rsync -avz --delete /home/user/documents/ user@server:/home/server/documents/",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I check disk usage broken down by directory?",
+      "domain": "process",
+      "response": "```bash\ndu -h --max-depth=1\n```\nDisplays human-readable disk usage of the current directory and its immediate subdirectories, one per line.",
+      "tokens": 37,
+      "tok_per_sec": 68.2,
+      "vram_mb": 7176,
+      "rag_context": "",
+      "command": "du -h --max-depth=1",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I kill a process by name without knowing its PID?",
+      "domain": "process",
+      "response": "```bash\nkillall nginx\n```\nThis command finds all processes with the name \"nginx\" and terminates them using their PIDs.",
+      "tokens": 32,
+      "tok_per_sec": 67.7,
+      "vram_mb": 7175,
+      "rag_context": "",
+      "command": "killall nginx",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "Show me how to find which process is using the most memory",
+      "domain": "process",
+      "response": "```bash\nlsof -n | awk '{sum+=$6} END {print sum}'\n```\nAggregates memory usage across all processes by summing the RES column, giving total memory in kilobytes.",
+      "tokens": 51,
+      "tok_per_sec": 71.8,
+      "vram_mb": 7175,
+      "rag_context": "lsof: -c -d -i -n -O -R -T -V",
+      "command": "lsof -n | awk '{sum+=$6} END {print sum}'",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I run a process in the background and keep it after SSH logout?",
+      "domain": "process",
+      "response": "```bash\nnohup -d value > /dev/null 2>&1 &\n```\nRuns a command in the background, ignores hangups, and redirects output while keeping the process alive after SSH disconnect.",
+      "tokens": 48,
+      "tok_per_sec": 72.3,
+      "vram_mb": 7175,
+      "rag_context": "",
+      "command": "nohup -d value > /dev/null 2>&1 &",
+      "validator": {
+        "ok": false,
+        "error": "nohup: unknown flag -d",
+        "suggestion": "nohup accepts NO flags before the command. Correct: nohup cmd &"
+      }
+    },
+    {
+      "question": "How do I schedule a cron job to run a script every day at midnight?",
+      "domain": "process",
+      "response": "```bash\ncrontab -e\n```\nOpens the crontab editor where you can add a new entry with `0 0 * * * /path/to/your/script`.",
+      "tokens": 43,
+      "tok_per_sec": 68.1,
+      "vram_mb": 7183,
+      "rag_context": "",
+      "command": "crontab -e",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I check CPU and memory usage in real time?",
+      "domain": "process",
+      "response": "```bash\nwatch -n 1 'top -bn1 | head -15'\n```\nDisplays CPU and memory statistics every second, updating the display in real time without saving to a file.",
+      "tokens": 46,
+      "tok_per_sec": 69.6,
+      "vram_mb": 7175,
+      "rag_context": "",
+      "command": "watch -n 1 'top -bn1 | head -15'",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I add a user to the sudo group?",
+      "domain": "users",
+      "response": "```bash\nsudo usermod -aG sudo jsmith\n```\nThis command adds the user jsmith to the sudo group, granting them sudo privileges.",
+      "tokens": 36,
+      "tok_per_sec": 66.9,
+      "vram_mb": 7180,
+      "rag_context": "",
+      "command": "sudo usermod -aG sudo jsmith",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I create a new user with a home directory?",
+      "domain": "users",
+      "response": "```bash\nuseradd -m -m john\n```\nThe `-m` flag automatically creates the home directory for the new user and copies the default template if one exists.",
+      "tokens": 40,
+      "tok_per_sec": 67.5,
+      "vram_mb": 3875,
+      "rag_context": "",
+      "command": "useradd -m -m john",
+      "validator": {
+        "ok": false,
+        "error": "useradd: duplicate flag -m",
+        "suggestion": "Remove the duplicate -m."
+      }
+    },
+    {
+      "question": "How do I lock a user account without deleting it?",
+      "domain": "users",
+      "response": "```bash\npasswd -l john\n```\nLocks the password for user 'john', preventing login while keeping the account active for administrative tasks.",
+      "tokens": 34,
+      "tok_per_sec": 70.3,
+      "vram_mb": 3871,
+      "rag_context": "",
+      "command": "passwd -l john",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I view all groups a user belongs to?",
+      "domain": "users",
+      "response": "```bash\nid username\n```\nThis command displays the user's ID and lists all groups they are a member of, including primary and supplementary groups.",
+      "tokens": 35,
+      "tok_per_sec": 69.0,
+      "vram_mb": 3871,
+      "rag_context": "",
+      "command": "id username",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I install a .deb package manually?",
+      "domain": "packages",
+      "response": "```bash\nsudo dpkg -i /path/to/package.deb\n```\nInstalls a Debian package from a local .deb file, automatically resolving and installing any missing dependencies.",
+      "tokens": 40,
+      "tok_per_sec": 71.2,
+      "vram_mb": 3871,
+      "rag_context": "",
+      "command": "sudo dpkg -i /path/to/package.deb",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I start, stop, and restart a systemd service?",
+      "domain": "packages",
+      "response": "```bash\nsudo systemctl restart nginx\n```\nThis command restarts the nginx service, stopping it first and then starting it again to apply any configuration changes.",
+      "tokens": 36,
+      "tok_per_sec": 70.6,
+      "vram_mb": 3866,
+      "rag_context": "",
+      "command": "sudo systemctl restart nginx",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I check if a service is enabled on boot with systemd?",
+      "domain": "packages",
+      "response": "```bash\nsystemctl is-enabled nginx\n```\nReturns `enabled` if the service is set to start automatically at boot, or `disabled`/`not-found` otherwise.",
+      "tokens": 41,
+      "tok_per_sec": 71.6,
+      "vram_mb": 3866,
+      "rag_context": "",
+      "command": "systemctl is-enabled nginx",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I find which package owns a specific file on Debian/Ubuntu?",
+      "domain": "packages",
+      "response": "```bash\ndpkg -S /path/to/file\n```\nThis command searches the dpkg database to identify which package currently owns and manages the specified file.",
+      "tokens": 37,
+      "tok_per_sec": 70.8,
+      "vram_mb": 3866,
+      "rag_context": "",
+      "command": "dpkg -S /path/to/file",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I extract the 3rd column from a space-separated file using awk?",
+      "domain": "text",
+      "response": "```bash\nawk '{print $3}' /home/admin/notes.txt\n```",
+      "tokens": 21,
+      "tok_per_sec": 65.3,
+      "vram_mb": 3866,
+      "rag_context": "",
+      "command": "awk '{print $3}' /home/admin/notes.txt",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I replace all occurrences of 'foo' with 'bar' in a file using sed?",
+      "domain": "text",
+      "response": "```bash\nsed 's/foo/bar/g' file.txt\n```\nThe `g` flag tells sed to replace all occurrences of 'foo' with 'bar' on each line, not just the first one.",
+      "tokens": 48,
+      "tok_per_sec": 72.1,
+      "vram_mb": 3866,
+      "rag_context": "",
+      "command": "sed 's/foo/bar/g' file.txt",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I count lines, words, and characters in a file?",
+      "domain": "text",
+      "response": "```bash\nwc -l -w -c report.txt\n```",
+      "tokens": 18,
+      "tok_per_sec": 59.3,
+      "vram_mb": 3866,
+      "rag_context": "wc: -l (lines)  -w (words)  -c (bytes)  -m (chars)  -L (longest line) — no -n flag",
+      "command": "wc -l -w -c report.txt",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I sort a file and remove duplicate lines?",
+      "domain": "text",
+      "response": "```bash\nsort -u input.txt\n```\nSorts lines alphabetically and removes duplicate entries in a single operation.",
+      "tokens": 29,
+      "tok_per_sec": 69.1,
+      "vram_mb": 3866,
+      "rag_context": "",
+      "command": "sort -u input.txt",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I mount a USB drive on Linux?",
+      "domain": "storage",
+      "response": "```bash\nsudo mount /dev/sdb1 /mnt/usb\n```\nThis command mounts the USB device at `/dev/sdb1` to the directory `/mnt/usb`. Replace `/dev/sdb1` with the actual partition identifier of your USB drive, which you can find using `lsblk` or `fdisk -l`.",
+      "tokens": 75,
+      "tok_per_sec": 73.3,
+      "vram_mb": 3866,
+      "rag_context": "",
+      "command": "sudo mount /dev/sdb1 /mnt/usb",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I check available disk space on all mounted filesystems?",
+      "domain": "storage",
+      "response": "```bash\ndf -h\n```\nDisplays a human-readable summary of disk space usage for all mounted filesystems, showing total, used, available space, and usage percentages.",
+      "tokens": 40,
+      "tok_per_sec": 71.2,
+      "vram_mb": 3866,
+      "rag_context": "",
+      "command": "df -h",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I create a compressed tar.gz archive of a directory?",
+      "domain": "storage",
+      "response": "```bash\ntar -czf backup.tar.gz /home/admin/documents\n```\nThis command creates a compressed tar archive named backup.tar.gz containing the contents of the /home/admin/documents directory.",
+      "tokens": 43,
+      "tok_per_sec": 71.9,
+      "vram_mb": 3866,
+      "rag_context": "",
+      "command": "tar -czf backup.tar.gz /home/admin/documents",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I find and delete files older than 30 days?",
+      "domain": "storage",
+      "response": "```bash\nfind /path/to/directory -mtime +30 -delete\n```\nThe `-mtime` option finds files modified more than 30 days ago, and `-delete` removes them.",
+      "tokens": 46,
+      "tok_per_sec": 68.9,
+      "vram_mb": 3864,
+      "rag_context": "",
+      "command": "find /path/to/directory -mtime +30 -delete",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "What is a Linux kernel module and how do you load one?",
+      "domain": "kernel",
+      "response": "```bash\nmodprobe <module-name>\n```\nThis command loads a kernel module into the running kernel, making its functionality available to the system immediately.",
+      "tokens": 36,
+      "tok_per_sec": 65.9,
+      "vram_mb": 3869,
+      "rag_context": "",
+      "command": "modprobe <module-name>",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "Explain the difference between a process and a thread in Linux",
+      "domain": "kernel",
+      "response": "```bash\nps aux | head -20\n```\nDisplays all running processes and their associated thread information, showing how threads share memory and resources within a process.",
+      "tokens": 38,
+      "tok_per_sec": 70.3,
+      "vram_mb": 3869,
+      "rag_context": "",
+      "command": "ps aux | head -20",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How does virtual memory paging work in Linux?",
+      "domain": "kernel",
+      "response": "```bash\ncat /proc/vmstat | grep -E 'pgpgin|pgpgout|pgfault|pgmajfault'\n```\nDisplays kernel counters tracking page-in, page-out, page faults, and major page faults to show how the kernel manages virtual memory paging.",
+      "tokens": 63,
+      "tok_per_sec": 70.4,
+      "vram_mb": 3869,
+      "rag_context": "",
+      "command": "cat /proc/vmstat | grep -E 'pgpgin|pgpgout|pgfault|pgmajfault'",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "What is the purpose of the /proc filesystem?",
+      "domain": "kernel",
+      "response": "```bash\nls -la /proc\n```\nThe /proc filesystem provides a virtual file system interface to kernel data structures, allowing userspace programs to read detailed information about running processes, hardware, and system parameters without direct kernel access.",
+      "tokens": 52,
+      "tok_per_sec": 70.8,
+      "vram_mb": 3869,
+      "rag_context": "",
+      "command": "ls -la /proc",
+      "validator": {
+        "ok": true,
+        "warn": "ls: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I check the current kernel version and build info?",
+      "domain": "kernel",
+      "response": "```bash\nuname -r\n```\nDisplays the currently running kernel version. For additional build information like compiler version and configuration, use `uname -a` to see all kernel details in one line.",
+      "tokens": 45,
+      "tok_per_sec": 71.9,
+      "vram_mb": 3869,
+      "rag_context": "",
+      "command": "uname -r",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "Write a bash script that checks if a file exists and prints a message",
+      "domain": "scripting",
+      "response": "```bash\n#!/bin/bash\n\nfile=\"/path/to/your/file.txt\"\n\nif [[ -f \"$file\" ]]; then\n    echo \"The file exists.\"\nelse\n    echo \"The file does not exist.\"\nfi\n```",
+      "tokens": 54,
+      "tok_per_sec": 72.6,
+      "vram_mb": 3869,
+      "rag_context": "",
+      "command": "#!/bin/bash\n\nfile=\"/path/to/your/file.txt\"\n\nif [[ -f \"$file\" ]]; then\n    echo \"The file exists.\"\nelse\n    echo \"The file does not exist.\"\nfi",
+      "validator": {
+        "ok": true,
+        "warn": "bash: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I loop over all .log files in a directory in bash?",
+      "domain": "scripting",
+      "response": "```bash\nfor logfile in *.log; do echo \"$logfile\"; done\n```\nLoops through all regular files matching the `.log` pattern in the current directory and prints their names.",
+      "tokens": 43,
+      "tok_per_sec": 71.1,
+      "vram_mb": 3869,
+      "rag_context": "",
+      "command": "for logfile in *.log; do echo \"$logfile\"; done",
+      "validator": {
+        "ok": true,
+        "warn": "for: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I capture the output of a command into a variable in bash?",
+      "domain": "scripting",
+      "response": "```bash\nresult=$(ls -la /home)\n```\nCommand substitution with `$(...)` captures the standard output of a command and assigns it to a variable.",
+      "tokens": 39,
+      "tok_per_sec": 70.6,
+      "vram_mb": 3869,
+      "rag_context": "",
+      "command": "result=$(ls -la /home)",
+      "validator": {
+        "ok": true,
+        "warn": "result=$(ls: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I pass arguments to a bash script and validate them?",
+      "domain": "scripting",
+      "response": "```bash\n#!/bin/bash\nif [ $# -lt 1 ]; then echo \"Usage: $0 <filename>\"; exit 1; fi\nfile=\"$1\"\nif [ ! -f \"$file\" ]; then echo \"File not found\"; exit 1; fi\ncat \"$file\"\n```",
+      "tokens": 68,
+      "tok_per_sec": 73.7,
+      "vram_mb": 3869,
+      "rag_context": "",
+      "command": "#!/bin/bash\nif [ $# -lt 1 ]; then echo \"Usage: $0 <filename>\"; exit 1; fi\nfile=\"$1\"\nif [ ! -f \"$file\" ]; then echo \"File not found\"; exit 1; fi\ncat \"$file\"",
+      "validator": {
+        "ok": true,
+        "warn": "bash: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "Find all setuid files on the system",
+      "domain": "files",
+      "response": "```bash\nfind / -perm +4000 -print\n```",
+      "tokens": 20,
+      "tok_per_sec": 65.5,
+      "vram_mb": 3868,
+      "rag_context": "",
+      "command": "find / -perm +4000 -print",
+      "validator": {
+        "ok": false,
+        "error": "find: -perm +4000 is deprecated syntax",
+        "suggestion": "Use -perm /4000 instead (e.g. find / -perm /4000 -type f)"
+      }
+    },
+    {
+      "question": "How do I find duplicate files by content across two directories?",
+      "domain": "files",
+      "response": "```bash\nfind /home/admin/old /home/admin/new -type f -exec md5sum {} \\; | sort | uniq -d | cut -d' ' -f1 | xargs md5sum\n```",
+      "tokens": 51,
+      "tok_per_sec": 72.6,
+      "vram_mb": 3868,
+      "rag_context": "",
+      "command": "find /home/admin/old /home/admin/new -type f -exec md5sum {} \\; | sort | uniq -d | cut -d' ' -f1 | xargs md5sum",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I recursively change permissions on only directories, not files?",
+      "domain": "files",
+      "response": "```bash\nfind /path -type d -exec chmod 755 {} +\n```\nChanges permissions to 755 (rwxr-xr-x) for all directories under /path without modifying any files.",
+      "tokens": 51,
+      "tok_per_sec": 72.1,
+      "vram_mb": 3868,
+      "rag_context": "",
+      "command": "find /path -type d -exec chmod 755 {} +",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I watch a directory for new files being created in real time?",
+      "domain": "files",
+      "response": "```bash\ninotifywait -m -e create ./src\n```\nMonitors the `./src` directory continuously for new files and alerts you when files are created.",
+      "tokens": 40,
+      "tok_per_sec": 70.9,
+      "vram_mb": 3868,
+      "rag_context": "",
+      "command": "inotifywait -m -e create ./src",
+      "validator": {
+        "ok": true,
+        "warn": "inotifywait: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "What is the difference between hard links and soft links?",
+      "domain": "files",
+      "response": "```bash\nln -s /etc/hostname /etc/hostname.soft && ln /etc/hostname /etc/hostname.hard\n```\nSoft links are symbolic links that store a path to the target file and can point to files on different filesystems, while hard links create additional directory entries pointing directly to the same inode, requiring the target to reside on the same filesystem.",
+      "tokens": 81,
+      "tok_per_sec": 74.3,
+      "vram_mb": 3868,
+      "rag_context": "",
+      "command": "ln -s /etc/hostname /etc/hostname.soft && ln /etc/hostname /etc/hostname.hard",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I find all files owned by a specific user across the system?",
+      "domain": "files",
+      "response": "```bash\nfind / -user jsmith\n```",
+      "tokens": 15,
+      "tok_per_sec": 60.7,
+      "vram_mb": 3868,
+      "rag_context": "",
+      "command": "find / -user jsmith",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I set up an SSH tunnel to forward a remote port to localhost?",
+      "domain": "networking",
+      "response": "```bash\nssh -R 8080:localhost:80 user@remotehost\n```\nThis establishes an SSH tunnel that forwards incoming connections to port 8080 on your local machine to port 80 on the remote host.",
+      "tokens": 57,
+      "tok_per_sec": 72.6,
+      "vram_mb": 3868,
+      "rag_context": "",
+      "command": "ssh -R 8080:localhost:80 user@remotehost",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I flush the DNS cache on Linux?",
+      "domain": "networking",
+      "response": "```bash\nsudo systemd-resolve --flush-caches\n```\nThis command clears all DNS cache entries managed by systemd-resolved, which is the default resolver on most modern Linux distributions.",
+      "tokens": 42,
+      "tok_per_sec": 71.5,
+      "vram_mb": 3868,
+      "rag_context": "",
+      "command": "sudo systemd-resolve --flush-caches",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I capture network traffic on a specific interface with tcpdump?",
+      "domain": "networking",
+      "response": "```bash\nsudo tcpdump -i eth0 -c 100\n```\nCaptures up to 100 packets from the eth0 interface and exits once the count is reached.",
+      "tokens": 45,
+      "tok_per_sec": 71.4,
+      "vram_mb": 3868,
+      "rag_context": "",
+      "command": "sudo tcpdump -i eth0 -c 100",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "What is the difference between TCP and UDP?",
+      "domain": "networking",
+      "response": "```bash\ncat /proc/net/tcp /proc/net/udp\n```\nDisplays the current status of TCP and UDP sockets, showing listening ports and connection states for both protocols.",
+      "tokens": 40,
+      "tok_per_sec": 71.3,
+      "vram_mb": 3868,
+      "rag_context": "",
+      "command": "cat /proc/net/tcp /proc/net/udp",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I check which process is listening on a specific port?",
+      "domain": "networking",
+      "response": "```bash\nlsof -i :8080\n```\nLists all processes using TCP or UDP port 8080, showing PID, command, and state.",
+      "tokens": 42,
+      "tok_per_sec": 69.8,
+      "vram_mb": 3868,
+      "rag_context": "lsof: -c -d -i -n -O -R -T -V",
+      "command": "lsof -i :8080",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I add a static route on Linux?",
+      "domain": "networking",
+      "response": "```bash\nip route add 10.0.0.1 via 192.168.1.1 dev eth0\n```\nAdds a static route directing traffic to 10.0.0.1 through gateway 192.168.1.1 on interface eth0.",
+      "tokens": 73,
+      "tok_per_sec": 73.9,
+      "vram_mb": 3868,
+      "rag_context": "",
+      "command": "ip route add 10.0.0.1 via 192.168.1.1 dev eth0",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I send a SIGHUP signal to a process to reload its config?",
+      "domain": "process",
+      "response": "```bash\nkill -HUP $(pgrep nginx)\n```\nSends a SIGHUP signal to the nginx process group, triggering it to reload its configuration without stopping.",
+      "tokens": 41,
+      "tok_per_sec": 70.5,
+      "vram_mb": 3868,
+      "rag_context": "",
+      "command": "kill -HUP $(pgrep nginx)",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I limit the CPU usage of a process using cgroups?",
+      "domain": "process",
+      "response": "```bash\nperf record -F 10000 -g -C 0 -p 12345 -- sleep 10\n```",
+      "tokens": 38,
+      "tok_per_sec": 69.5,
+      "vram_mb": 3868,
+      "rag_context": "perf record -F Hz -g [-p PID] [-- COMMAND]",
+      "command": "perf record -F 10000 -g -C 0 -p 12345 -- sleep 10",
+      "validator": {
+        "ok": false,
+        "error": "perf: unknown flag -C",
+        "suggestion": "Known flags: -F (sampling frequency in Hz — use 99 or 999, NOT 999999), -g (enable call-graph recording), -p (target process PID), -a (system-wide profiling)"
+      }
+    },
+    {
+      "question": "What are zombie processes and how do I clean them up?",
+      "domain": "process",
+      "response": "```bash\nps -o pid,ppid,state | grep Z\n```\nZombie processes are defunct child processes that have finished execution but whose parent process hasn't yet read their exit status, causing them to remain in a \"Z\" state. They don't consume resources but can prevent new processes from being created.",
+      "tokens": 70,
+      "tok_per_sec": 72.5,
+      "vram_mb": 3868,
+      "rag_context": "",
+      "command": "ps -o pid,ppid,state | grep Z",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I trace system calls made by a running process?",
+      "domain": "process",
+      "response": "```bash\nstrace -p 1234\n```\nTraces system calls made by the process with PID 1234 without stopping it.",
+      "tokens": 38,
+      "tok_per_sec": 69.0,
+      "vram_mb": 3868,
+      "rag_context": "strace: -e -E -p -u --argv0 string -b -D -DD",
+      "command": "strace -p 1234",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I find all child processes of a given PID?",
+      "domain": "process",
+      "response": "```bash\nps -o pid,ppid,cmd --pid 1234 | awk '$2==1234{print}'\n```\nFilters ps output to show only processes whose parent PID matches the given PID.",
+      "tokens": 53,
+      "tok_per_sec": 68.6,
+      "vram_mb": 3863,
+      "rag_context": "",
+      "command": "ps -o pid,ppid,cmd --pid 1234 | awk '$2==1234{print}'",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I set process priority with nice and renice?",
+      "domain": "process",
+      "response": "```bash\nrenice 5 -p $(pgrep -f myapp)\n```\nThe `renice` command changes the nice value of running processes, where lower values indicate higher priority. Use `nice` to start a process with a higher nice value (lower priority).",
+      "tokens": 62,
+      "tok_per_sec": 70.9,
+      "vram_mb": 3863,
+      "rag_context": "",
+      "command": "renice 5 -p $(pgrep -f myapp)",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I set up passwordless sudo for a specific command?",
+      "domain": "users",
+      "response": "```bash\nsudo visudo\n```\nAdd `username ALL=(ALL) NOPASSWD: /usr/local/bin/your_command` to the sudoers file to allow passwordless execution of that specific command.",
+      "tokens": 47,
+      "tok_per_sec": 67.8,
+      "vram_mb": 3864,
+      "rag_context": "",
+      "command": "sudo visudo",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I set a password expiration policy for a user?",
+      "domain": "users",
+      "response": "```bash\nchage -M 90 -W 7 -d 180 admin\n```\nSets password expiration to 90 days, allows 7 days of grace period, and allows 180 days for password change after expiration.",
+      "tokens": 57,
+      "tok_per_sec": 69.6,
+      "vram_mb": 3865,
+      "rag_context": "",
+      "command": "chage -M 90 -W 7 -d 180 admin",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "What is PAM and how does it handle authentication in Linux?",
+      "domain": "users",
+      "response": "```bash\nsudo pam-auth-update\n```\nThis command opens a graphical or interactive menu to manage PAM modules for authentication, allowing you to enable, disable, or configure modules like password authentication, public key, and multi-factor authentication.",
+      "tokens": 52,
+      "tok_per_sec": 71.8,
+      "vram_mb": 3865,
+      "rag_context": "",
+      "command": "sudo pam-auth-update",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I set file ACLs with setfacl to give a specific user read access?",
+      "domain": "users",
+      "response": "```bash\nsetfacl -m u:jsmith:r /etc/shadow\n```",
+      "tokens": 23,
+      "tok_per_sec": 61.6,
+      "vram_mb": 3865,
+      "rag_context": "",
+      "command": "setfacl -m u:jsmith:r /etc/shadow",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I pin a package to prevent it from being upgraded?",
+      "domain": "packages",
+      "response": "```bash\ndnf hold <package_name>\n```\nThis command marks the specified package as held, preventing it from being upgraded or downgraded by package managers like dnf or yum.",
+      "tokens": 43,
+      "tok_per_sec": 67.2,
+      "vram_mb": 3870,
+      "rag_context": "",
+      "command": "dnf hold <package_name>",
+      "validator": {
+        "ok": true,
+        "warn": "dnf: this is a non-Debian package manager. On Ubuntu/Debian use apt/dpkg instead."
+      }
+    },
+    {
+      "question": "How do I add a third-party PPA repository on Ubuntu?",
+      "domain": "packages",
+      "response": "```bash\nsudo add-apt-repository ppa:your-ppa-name/ppa\n```\nThis command adds a new third-party repository to your Ubuntu system, allowing installation of packages from that source.",
+      "tokens": 47,
+      "tok_per_sec": 70.4,
+      "vram_mb": 3871,
+      "rag_context": "",
+      "command": "sudo add-apt-repository ppa:your-ppa-name/ppa",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I list all installed packages sorted by size?",
+      "domain": "packages",
+      "response": "```bash\ndpkg-query -W --format='${Size}\\n' | sort -rn\n```",
+      "tokens": 25,
+      "tok_per_sec": 62.1,
+      "vram_mb": 3880,
+      "rag_context": "dpkg-query: -s -p -L -l -W -S --control-list --control-show",
+      "command": "dpkg-query -W --format='${Size}\\n' | sort -rn",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I build and install a package from source using configure, make, make install?",
+      "domain": "packages",
+      "response": "```bash\n./configure --prefix=/usr/local && make && sudo make install\n```\nThis runs the configure script to detect system settings, compiles the source code, and installs it to /usr/local by default.",
+      "tokens": 49,
+      "tok_per_sec": 69.7,
+      "vram_mb": 3885,
+      "rag_context": "",
+      "command": "./configure --prefix=/usr/local && make && sudo make install",
+      "validator": {
+        "ok": true,
+        "warn": "configure: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I use awk to sum a numeric column in a CSV file?",
+      "domain": "text",
+      "response": "```bash\nawk -F, '{sum += $3} END {print sum}' data.csv\n```",
+      "tokens": 26,
+      "tok_per_sec": 66.2,
+      "vram_mb": 3892,
+      "rag_context": "",
+      "command": "awk -F, '{sum += $3} END {print sum}' data.csv",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I extract JSON values from a file using jq?",
+      "domain": "text",
+      "response": "```bash\njq '.[].name' data.json\n```\nExtracts the \"name\" field from all objects in a JSON array, outputting them one per line.",
+      "tokens": 39,
+      "tok_per_sec": 67.8,
+      "vram_mb": 3898,
+      "rag_context": "",
+      "command": "jq '.[].name' data.json",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I use sed to delete all blank lines from a file?",
+      "domain": "text",
+      "response": "```bash\nsed '/^$/d' /var/log/app.log\n```\nThis command removes every line that is empty or contains only whitespace, effectively removing blank lines from the input.",
+      "tokens": 42,
+      "tok_per_sec": 70.9,
+      "vram_mb": 3895,
+      "rag_context": "",
+      "command": "sed '/^$/d' /var/log/app.log",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I find lines matching a regex pattern that spans multiple words?",
+      "domain": "text",
+      "response": "```bash\ngrep -E 'pattern.*pattern' file\n```\nThe `-E` flag enables extended regular expressions, allowing you to match patterns that span across multiple words using anchors and word boundaries.",
+      "tokens": 45,
+      "tok_per_sec": 66.5,
+      "vram_mb": 3897,
+      "rag_context": "",
+      "command": "grep -E 'pattern.*pattern' file",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I create and manage LVM logical volumes?",
+      "domain": "storage",
+      "response": "```bash\nsudo lvcreate -L 5G -n mydata /dev/vg0\n```\nCreates a new logical volume named 'mydata' with a size of 5GB within the 'vg0' volume group.",
+      "tokens": 53,
+      "tok_per_sec": 68.1,
+      "vram_mb": 3921,
+      "rag_context": "",
+      "command": "sudo lvcreate -L 5G -n mydata /dev/vg0",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I add an entry to /etc/fstab to auto-mount a partition at boot?",
+      "domain": "storage",
+      "response": "```bash\necho 'UUID=589f9327-01c7-438a-9f52-861251576567 /mnt/data ext4 defaults,noatime 0 2' | sudo tee -a /etc/fstab\n```\nAdds a new entry to fstab using UUID (safer than device names) to automatically mount the partition at boot with noatime mount option.",
+      "tokens": 103,
+      "tok_per_sec": 73.5,
+      "vram_mb": 3918,
+      "rag_context": "",
+      "command": "echo 'UUID=589f9327-01c7-438a-9f52-861251576567 /mnt/data ext4 defaults,noatime 0 2' | sudo tee -a /etc/fstab",
+      "validator": {
+        "ok": true,
+        "warn": "echo: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "What is the difference between ext4 and XFS filesystems?",
+      "domain": "storage",
+      "response": "```bash\nsudo tune2fs -l /dev/sda1 | grep -E 'Inode blocks|Journal'\n```\nDisplays inode and journal statistics to compare how ext4 and XFS manage block allocation and recovery mechanisms.",
+      "tokens": 52,
+      "tok_per_sec": 70.9,
+      "vram_mb": 3918,
+      "rag_context": "",
+      "command": "sudo tune2fs -l /dev/sda1 | grep -E 'Inode blocks|Journal'",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I check and repair a filesystem with fsck?",
+      "domain": "storage",
+      "response": "```bash\nsudo fsck -n /dev/sda1\n```\nRuns fsck in read-only mode to check for errors without making changes.",
+      "tokens": 35,
+      "tok_per_sec": 68.3,
+      "vram_mb": 3918,
+      "rag_context": "",
+      "command": "sudo fsck -n /dev/sda1",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "What are Linux namespaces and how are they used for containers?",
+      "domain": "kernel",
+      "response": "```bash\ndocker run --network host --dns 8.8.8.8 busybox ip route\n```\nThis command runs a container with its own isolated network namespace but shares the host's DNS configuration, demonstrating how namespaces allow containers to have isolated views of network resources while reusing shared host resources.",
+      "tokens": 67,
+      "tok_per_sec": 73.1,
+      "vram_mb": 3917,
+      "rag_context": "",
+      "command": "docker run --network host --dns 8.8.8.8 busybox ip route",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I read kernel ring buffer messages with dmesg?",
+      "domain": "kernel",
+      "response": "```bash\ndmesg | less\n```\nPipes dmesg output to less for paginated, scrollable viewing of kernel messages.",
+      "tokens": 34,
+      "tok_per_sec": 68.1,
+      "vram_mb": 3916,
+      "rag_context": "",
+      "command": "dmesg | less",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "What is eBPF and what is it used for in modern Linux?",
+      "domain": "kernel",
+      "response": "```bash\nsudo ebpf --help\n```\nDisplays usage information for the ebpf utility, which helps manage and monitor eBPF programs and their associated map structures.",
+      "tokens": 39,
+      "tok_per_sec": 66.4,
+      "vram_mb": 3903,
+      "rag_context": "",
+      "command": "sudo ebpf --help",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I change a kernel parameter at runtime using sysctl?",
+      "domain": "kernel",
+      "response": "```bash\nsudo sysctl -w net.ipv4.tcp_tw_reuse=1\n```\nUpdates the `tcp_tw_reuse` kernel parameter in real time to allow reusing TIME_WAIT sockets, improving connection handling without requiring a reboot.",
+      "tokens": 53,
+      "tok_per_sec": 71.9,
+      "vram_mb": 3901,
+      "rag_context": "",
+      "command": "sudo sysctl -w net.ipv4.tcp_tw_reuse=1",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "What is the difference between user space and kernel space?",
+      "domain": "kernel",
+      "response": "```bash\ncat /proc/sys/kernel/randomize_va_space\n```\nDisplays the virtual address randomization level, which is a kernel-space feature designed to improve security by making address space layout unpredictable to attackers.",
+      "tokens": 46,
+      "tok_per_sec": 71.0,
+      "vram_mb": 3901,
+      "rag_context": "",
+      "command": "cat /proc/sys/kernel/randomize_va_space",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I write a bash function that returns a value?",
+      "domain": "scripting",
+      "response": "```bash\nget_status() { echo $1; return $?; }\n```",
+      "tokens": 21,
+      "tok_per_sec": 65.2,
+      "vram_mb": 3901,
+      "rag_context": "",
+      "command": "get_status() { echo $1; return $?; }",
+      "validator": {
+        "ok": true,
+        "warn": "get_status(): not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I use trap to handle signals in a bash script?",
+      "domain": "scripting",
+      "response": "```bash\ntrap 'echo \"Interrupted\"; exit 1' INT TERM\n```\nThe `trap` command associates a command with specific signals, executing that command when the signal is received.",
+      "tokens": 44,
+      "tok_per_sec": 69.5,
+      "vram_mb": 3901,
+      "rag_context": "",
+      "command": "trap 'echo \"Interrupted\"; exit 1' INT TERM",
+      "validator": {
+        "ok": true,
+        "warn": "trap: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I use bash arrays to iterate over a list of items?",
+      "domain": "scripting",
+      "response": "```bash\nfor item in \"${arr[@]}\"; do echo \"$item\"; done\n```",
+      "tokens": 23,
+      "tok_per_sec": 64.1,
+      "vram_mb": 3901,
+      "rag_context": "",
+      "command": "for item in \"${arr[@]}\"; do echo \"$item\"; done",
+      "validator": {
+        "ok": true,
+        "warn": "for: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I redirect both stdout and stderr to a file in bash?",
+      "domain": "scripting",
+      "response": "```bash\ncommand > output.log 2>&1\n```\nThis redirects both standard output (stdout) and standard error (stderr) to the same file, ensuring all messages appear in one place.",
+      "tokens": 45,
+      "tok_per_sec": 70.3,
+      "vram_mb": 3901,
+      "rag_context": "",
+      "command": "command > output.log 2>&1",
+      "validator": {
+        "ok": true,
+        "warn": "command: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I write a bash script with a case statement for menu options?",
+      "domain": "scripting",
+      "response": "```bash\n#!/bin/bash\nwhile true; do\n  echo \"1. Start\"\n  echo \"2. Stop\"\n  read -p \"Choose option: \" choice\n  case $choice in\n    1) echo \"Starting service...\" ;;\n    2) echo \"Stopping service...\" ;;\n    *) echo \"Invalid option\" ;;\n  esac\ndone\n```\nThe case statement evaluates the variable `$choice` and executes the corresponding block for matching patterns, enabling structured menu handling.",
+      "tokens": 110,
+      "tok_per_sec": 73.8,
+      "vram_mb": 3887,
+      "rag_context": "",
+      "command": "#!/bin/bash\nwhile true; do\n  echo \"1. Start\"\n  echo \"2. Stop\"\n  read -p \"Choose option: \" choice\n  case $choice in\n    1) echo \"Starting service...\" ;;\n    2) echo \"Stopping service...\" ;;\n    *) echo \"Invalid option\" ;;\n  esac\ndone",
+      "validator": {
+        "ok": true,
+        "warn": "bash: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I use git bisect to find the commit that introduced a bug?",
+      "domain": "git",
+      "response": "```bash\ngit bisect start\n```\nInitiates a binary search by establishing a baseline from a known good commit and preparing to test commits between it and the known bad one.",
+      "tokens": 41,
+      "tok_per_sec": 70.0,
+      "vram_mb": 3884,
+      "rag_context": "",
+      "command": "git bisect start",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I cherry-pick a commit from another branch?",
+      "domain": "git",
+      "response": "```bash\ngit cherry-pick abc123\n```\nThis command applies the changes from commit abc123 onto your current branch, creating a new commit with the same changes.",
+      "tokens": 43,
+      "tok_per_sec": 68.8,
+      "vram_mb": 3884,
+      "rag_context": "",
+      "command": "git cherry-pick abc123",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I recover a dropped stash using git reflog?",
+      "domain": "git",
+      "response": "```bash\ngit reflog show\n```\nDisplays a log of all reference changes including dropped stashes, allowing you to locate and restore the lost stash entry.",
+      "tokens": 37,
+      "tok_per_sec": 68.7,
+      "vram_mb": 3884,
+      "rag_context": "",
+      "command": "git reflog show",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I set up a git pre-commit hook that runs linting?",
+      "domain": "git",
+      "response": "```bash\ngit config core.hooksPath ~/.git-hooks\n```\nThis configures git to run all hooks in the ~/.git-hooks directory instead of the default .git/hooks directory.",
+      "tokens": 42,
+      "tok_per_sec": 69.6,
+      "vram_mb": 3884,
+      "rag_context": "",
+      "command": "git config core.hooksPath ~/.git-hooks",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I squash the last 3 commits into one?",
+      "domain": "git",
+      "response": "```bash\ngit rebase -i HEAD~3\n```\nThis opens an interactive rebase editor where you can mark the last three commits with \"s\" to squash them into a single commit.",
+      "tokens": 45,
+      "tok_per_sec": 70.3,
+      "vram_mb": 3884,
+      "rag_context": "",
+      "command": "git rebase -i HEAD~3",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I clone only a specific branch with shallow history?",
+      "domain": "git",
+      "response": "```bash\ngit clone --depth 1 https://github.com/user/repo.git\n```\nThis clones the repository with only the most recent commit, reducing download size and time for large repositories.",
+      "tokens": 44,
+      "tok_per_sec": 70.7,
+      "vram_mb": 3884,
+      "rag_context": "",
+      "command": "git clone --depth 1 https://github.com/user/repo.git",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I use git worktree to work on multiple branches simultaneously?",
+      "domain": "git",
+      "response": "```bash\ngit worktree add /path/to/workspace develop\n```\nCreates a new worktree at the specified path that tracks the develop branch, allowing you to work on multiple branches in parallel without affecting the main repository.",
+      "tokens": 49,
+      "tok_per_sec": 68.9,
+      "vram_mb": 3901,
+      "rag_context": "",
+      "command": "git worktree add /path/to/workspace develop",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I resolve a merge conflict in git from the command line?",
+      "domain": "git",
+      "response": "```bash\ngit checkout 10 -- file.txt\n```\nThis command applies the changes from commit 10 to file.txt, which can resolve conflicts by keeping the newer version if one side is fully ahead.",
+      "tokens": 48,
+      "tok_per_sec": 67.0,
+      "vram_mb": 3905,
+      "rag_context": "",
+      "command": "git checkout 10 -- file.txt",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I build a Docker image from a Dockerfile?",
+      "domain": "docker",
+      "response": "```bash\ndocker build -t myapp:1.0 /path/to/Dockerfile\n```\nBuilds a Docker image named \"myapp:1.0\" using the specified Dockerfile located in the given directory.",
+      "tokens": 51,
+      "tok_per_sec": 68.6,
+      "vram_mb": 3903,
+      "rag_context": "docker: --config -c -D -H -l --tls --tlscacert --tlscert",
+      "command": "docker build -t myapp:1.0 /path/to/Dockerfile",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I run a Docker container with a mounted volume?",
+      "domain": "docker",
+      "response": "```bash\ndocker run -v /host/path:/container/path myapp\n```",
+      "tokens": 21,
+      "tok_per_sec": 61.9,
+      "vram_mb": 3903,
+      "rag_context": "docker: --config -c -D -H -l --tls --tlscacert --tlscert",
+      "command": "docker run -v /host/path:/container/path myapp",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I list all running Docker containers and their resource usage?",
+      "domain": "docker",
+      "response": "```bash\ndocker ps\n```\n\nLists all running containers with their CPU and memory usage, network stats, and disk I/O metrics.",
+      "tokens": 162,
+      "tok_per_sec": 74.1,
+      "vram_mb": 3902,
+      "rag_context": "docker: --config -c -D -H -l --tls --tlscacert --tlscert",
+      "command": "docker ps",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I exec into a running Docker container to debug it?",
+      "domain": "docker",
+      "response": "```bash\ndocker exec myapp-container /bin/bash\n```\nExecutes a shell inside the running container, allowing you to interact with its filesystem and processes directly.",
+      "tokens": 38,
+      "tok_per_sec": 68.3,
+      "vram_mb": 3902,
+      "rag_context": "docker: --config -c -D -H -l --tls --tlscacert --tlscert",
+      "command": "docker exec myapp-container /bin/bash",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I view logs from a Docker container?",
+      "domain": "docker",
+      "response": "```bash\ndocker logs myapp\n```\nDisplays all standard output and standard error logs from the container named \"myapp\".",
+      "tokens": 30,
+      "tok_per_sec": 65.7,
+      "vram_mb": 3902,
+      "rag_context": "docker: --config -c -D -H -l --tls --tlscacert --tlscert",
+      "command": "docker logs myapp",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I remove all stopped containers and unused images to free disk space?",
+      "domain": "docker",
+      "response": "```bash\ndocker system prune\n```\nThis command removes all stopped containers, unused networks, unused build cache, and unused images, clearing significant disk space.",
+      "tokens": 36,
+      "tok_per_sec": 69.3,
+      "vram_mb": 3899,
+      "rag_context": "",
+      "command": "docker system prune",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I create a Docker network for container-to-container communication?",
+      "domain": "docker",
+      "response": "```bash\ndocker network create myapp-network\n```\nCreates a new user-defined network that containers can join to communicate with each other.",
+      "tokens": 32,
+      "tok_per_sec": 66.8,
+      "vram_mb": 3899,
+      "rag_context": "docker: --config -c -D -H -l --tls --tlscacert --tlscert",
+      "command": "docker network create myapp-network",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "What is the difference between CMD and ENTRYPOINT in a Dockerfile?",
+      "domain": "docker",
+      "response": "```bash\ndocker run --rm webserver:latest\n```\nCMD runs a command that overrides the default, while ENTRYPOINT sets the main executable that can be overridden with --entrypoint.",
+      "tokens": 43,
+      "tok_per_sec": 69.1,
+      "vram_mb": 3882,
+      "rag_context": "docker: --config -c -D -H -l --tls --tlscacert --tlscert",
+      "command": "docker run --rm webserver:latest",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I use strace to trace system calls of a command?",
+      "domain": "debugging",
+      "response": "```bash\nstrace -e open,read,write ./myapp\n```\nTraces only the open, read, and write system calls made by running ./myapp.",
+      "tokens": 41,
+      "tok_per_sec": 68.7,
+      "vram_mb": 3877,
+      "rag_context": "strace: -e -E -p -u --argv0 string -b -D -DD",
+      "command": "strace -e open,read,write ./myapp",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I attach gdb to a running process for debugging?",
+      "domain": "debugging",
+      "response": "```bash\ngdb -p 12345\n```\nAttaches gdb to process 12345 to debug it interactively.",
+      "tokens": 37,
+      "tok_per_sec": 67.8,
+      "vram_mb": 3877,
+      "rag_context": "gdb BINARY [COREFILE|PID]  or  gdb -p PID",
+      "command": "gdb -p 12345",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I check for memory leaks using valgrind?",
+      "domain": "debugging",
+      "response": "```bash\nsudo apt install valgrind\n```\nInstalls valgrind, a memory debugging tool that detects memory leaks and other memory errors in programs.",
+      "tokens": 37,
+      "tok_per_sec": 69.2,
+      "vram_mb": 3877,
+      "rag_context": "valgrind: not installed",
+      "command": "sudo apt install valgrind",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I use perf to profile CPU performance of a program?",
+      "domain": "debugging",
+      "response": "```bash\nperf record -F 999999 -g -e cycles,instructions,branch-misses ./myapp\n```\nRecords performance counters at 1MHz frequency, collecting cycle counts, instruction counts, and branch misses for the running application.",
+      "tokens": 59,
+      "tok_per_sec": 71.0,
+      "vram_mb": 3877,
+      "rag_context": "perf record -F Hz -g [-p PID] [-- COMMAND]",
+      "command": "perf record -F 999999 -g -e cycles,instructions,branch-misses ./myapp",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I generate and analyze a core dump from a crashed program?",
+      "domain": "debugging",
+      "response": "```bash\ngcore 3456 > /tmp/core\ngdb /tmp/core\n```\nGenerates a core dump from process 3456 and loads it into GDB for debugging.",
+      "tokens": 48,
+      "tok_per_sec": 70.2,
+      "vram_mb": 3877,
+      "rag_context": "gdb BINARY [COREFILE|PID]  or  gdb -p PID",
+      "command": "gcore 3456 > /tmp/core\ngdb /tmp/core",
+      "validator": {
+        "ok": true,
+        "warn": "gcore: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I use lsof to find which process has a file open?",
+      "domain": "debugging",
+      "response": "```bash\nlsof +f 10\n```\nLists all open files associated with the process having PID 10.",
+      "tokens": 32,
+      "tok_per_sec": 66.2,
+      "vram_mb": 3877,
+      "rag_context": "lsof: -c -d -i -n -O -R -T -V",
+      "command": "lsof +f 10",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I inspect the memory map of a process using /proc?",
+      "domain": "debugging",
+      "response": "```bash\ncat /proc/1234/maps\n```\nDisplays the memory map for process 1234, showing which regions of memory are mapped to which files or addresses.",
+      "tokens": 44,
+      "tok_per_sec": 70.0,
+      "vram_mb": 3877,
+      "rag_context": "",
+      "command": "cat /proc/1234/maps",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "What is the difference between static and dynamic analysis tools?",
+      "domain": "debugging",
+      "response": "```bash\nstrings /etc/passwd | grep -v \"nologin\"\n```\nStatic analysis tools extract information from files without executing them, while dynamic analysis requires running the software to observe behavior in real time.",
+      "tokens": 48,
+      "tok_per_sec": 66.7,
+      "vram_mb": 3887,
+      "rag_context": "",
+      "command": "strings /etc/passwd | grep -v \"nologin\"",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I compile a C program with gcc and enable all warnings?",
+      "domain": "build",
+      "response": "```bash\ngcc -Wall -Wextra -Wpedantic myprogram.c -o myprogram\n```\nCombines `-Wall` for all warnings with `-Wextra` for additional warnings and `-Wpedantic` to enforce strict ISO C99 compliance.",
+      "tokens": 58,
+      "tok_per_sec": 70.3,
+      "vram_mb": 3888,
+      "rag_context": "",
+      "command": "gcc -Wall -Wextra -Wpedantic myprogram.c -o myprogram",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I create a Makefile with a clean target and dependency tracking?",
+      "domain": "build",
+      "response": "```bash\ncat > Makefile << 'EOF'\n.PHONY: clean\nclean:\n\trm -f *.o\n\nall: main.o\n\tgcc -o main main.o\n\nmain.o: main.c\n\tgcc -c main.c\nEOF\n```",
+      "tokens": 60,
+      "tok_per_sec": 72.0,
+      "vram_mb": 3888,
+      "rag_context": "",
+      "command": "cat > Makefile << 'EOF'\n.PHONY: clean\nclean:\n\trm -f *.o\n\nall: main.o\n\tgcc -o main main.o\n\nmain.o: main.c\n\tgcc -c main.c\nEOF",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I compile a shared library (.so) from C source files?",
+      "domain": "build",
+      "response": "```bash\ngcc -shared -fPIC -o libmylib.so mylib.c\n```",
+      "tokens": 24,
+      "tok_per_sec": 65.4,
+      "vram_mb": 3888,
+      "rag_context": "",
+      "command": "gcc -shared -fPIC -o libmylib.so mylib.c",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I use pkg-config to find compiler flags for a library?",
+      "domain": "build",
+      "response": "```bash\npkg-config --cflags --libs libname\n```\nThis command outputs both the compiler flags (like -I for include paths) and linker flags (like -L for library paths and -l for library names) required to compile and link against the specified library.",
+      "tokens": 61,
+      "tok_per_sec": 72.3,
+      "vram_mb": 3888,
+      "rag_context": "",
+      "command": "pkg-config --cflags --libs libname",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I cross-compile a binary for ARM on an x86 machine?",
+      "domain": "build",
+      "response": "```bash\ngcc -marm -o output output.c\n```\nThis command compiles your code for ARM architecture on an x86 system by using the `-marm` flag to enable ARM-specific instruction sets.",
+      "tokens": 49,
+      "tok_per_sec": 71.2,
+      "vram_mb": 3888,
+      "rag_context": "",
+      "command": "gcc -marm -o output output.c",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "What is the difference between static and dynamic linking?",
+      "domain": "build",
+      "response": "```bash\nldd $(which grep)\n```\nShows dynamically linked libraries for a binary, revealing shared objects it loads at runtime versus those statically built-in.",
+      "tokens": 37,
+      "tok_per_sec": 69.5,
+      "vram_mb": 3888,
+      "rag_context": "",
+      "command": "ldd $(which grep)",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I create a systemd timer that runs a script every hour?",
+      "domain": "systemd",
+      "response": "```bash\ncat > /etc/systemd/system/hourly-task.timer << 'EOF'\n[Unit]\nDescription=Hourly task\n\n[Timer]\nOnCalendar=*-*-*-*-09:00:00\nPersistent=true\n\n[Install]\nWantedBy=timers.target\nEOF\nsystemctl daemon-reload && systemctl enable --now hourly-task.timer\n```",
+      "tokens": 85,
+      "tok_per_sec": 73.3,
+      "vram_mb": 3890,
+      "rag_context": "",
+      "command": "cat > /etc/systemd/system/hourly-task.timer << 'EOF'\n[Unit]\nDescription=Hourly task\n\n[Timer]\nOnCalendar=*-*-*-*-09:00:00\nPersistent=true\n\n[Install]\nWantedBy=timers.target\nEOF\nsystemctl daemon-reload && systemctl enable --now hourly-task.timer",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I write a custom systemd service unit file?",
+      "domain": "systemd",
+      "response": "```bash\nnano /etc/systemd/system/custom-service.service\n```\nThis opens the systemd service file editor where you define the custom service unit configuration including service type, start conditions, and dependencies.",
+      "tokens": 44,
+      "tok_per_sec": 69.9,
+      "vram_mb": 3883,
+      "rag_context": "",
+      "command": "nano /etc/systemd/system/custom-service.service",
+      "validator": {
+        "ok": true,
+        "warn": "nano: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I view systemd journal logs for a specific service since yesterday?",
+      "domain": "systemd",
+      "response": "```bash\njournalctl --since '1 day ago' --unit nginx\n```\nFilters journal logs to show only entries from the past 24 hours for the nginx service, useful for troubleshooting recent issues.",
+      "tokens": 47,
+      "tok_per_sec": 69.8,
+      "vram_mb": 3886,
+      "rag_context": "",
+      "command": "journalctl --since '1 day ago' --unit nginx",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I set up systemd service dependencies so service B starts after service A?",
+      "domain": "systemd",
+      "response": "```bash\necho \"After=service-a.service\" >> /etc/systemd/system/service-b.service\n```\nThis adds a dependency directive to service-b.service that tells systemd to wait for service-a.service to fully start before starting service-b.service.",
+      "tokens": 54,
+      "tok_per_sec": 70.4,
+      "vram_mb": 3886,
+      "rag_context": "",
+      "command": "echo \"After=service-a.service\" >> /etc/systemd/system/service-b.service",
+      "validator": {
+        "ok": true,
+        "warn": "echo: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "What is systemd socket activation and when would you use it?",
+      "domain": "systemd",
+      "response": "```bash\nsystemctl list-units --type=socket\n```\nShows all socket units in systemd, which are used to activate services on-demand rather than keeping them running in the background.",
+      "tokens": 43,
+      "tok_per_sec": 70.0,
+      "vram_mb": 3886,
+      "rag_context": "",
+      "command": "systemctl list-units --type=socket",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I configure UFW to allow only SSH and HTTP traffic?",
+      "domain": "security",
+      "response": "```bash\nufw allow ssh && ufw allow http && ufw allow https && ufw enable\n```\nEnables UFW and opens only SSH, HTTP, and HTTPS ports, blocking all other incoming traffic by default.",
+      "tokens": 51,
+      "tok_per_sec": 70.4,
+      "vram_mb": 3884,
+      "rag_context": "",
+      "command": "ufw allow ssh && ufw allow http && ufw allow https && ufw enable",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I harden SSH by disabling root login and password auth?",
+      "domain": "security",
+      "response": "```bash\nsudo nano /etc/ssh/sshd_config\n```\nEdit the config to set `PermitRootLogin no` and `PasswordAuthentication no`, then restart ssh with `sudo systemctl restart sshd`.",
+      "tokens": 48,
+      "tok_per_sec": 69.7,
+      "vram_mb": 3897,
+      "rag_context": "",
+      "command": "sudo nano /etc/ssh/sshd_config",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I use fail2ban to protect against brute-force SSH attacks?",
+      "domain": "security",
+      "response": "```bash\nsudo systemctl start fail2ban-server\n```\nStarts the fail2ban daemon to monitor and ban IPs attempting repeated failed SSH logins.",
+      "tokens": 36,
+      "tok_per_sec": 64.9,
+      "vram_mb": 3897,
+      "rag_context": "",
+      "command": "sudo systemctl start fail2ban-server",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I check AppArmor profiles and their enforcement status?",
+      "domain": "security",
+      "response": "```bash\nsudo aa-status\n```\nDisplays a summary of all AppArmor profiles, including their status (enforced, complain, or ignore), and provides options to manage profile enforcement.",
+      "tokens": 42,
+      "tok_per_sec": 69.1,
+      "vram_mb": 3897,
+      "rag_context": "",
+      "command": "sudo aa-status",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I audit file access using auditd and ausearch?",
+      "domain": "security",
+      "response": "```bash\nausearch -m open -ts today\n```\nSearches the audit log for all open file system events that occurred today.",
+      "tokens": 33,
+      "tok_per_sec": 67.4,
+      "vram_mb": 3898,
+      "rag_context": "",
+      "command": "ausearch -m open -ts today",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I connect to a PostgreSQL database and list all tables?",
+      "domain": "database",
+      "response": "```bash\npsql -U postgres -d mydb -c \"\\dt\"\n```\nThis command connects to the PostgreSQL database \"mydb\" as the user \"postgres\" and lists all tables in that database.",
+      "tokens": 49,
+      "tok_per_sec": 68.7,
+      "vram_mb": 3897,
+      "rag_context": "",
+      "command": "psql -U postgres -d mydb -c \"\\dt\"",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I dump a MySQL database to a SQL file for backup?",
+      "domain": "database",
+      "response": "```bash\nmysqldump -u root -p --all-databases > backup.sql\n```\nThis command dumps all databases from the MySQL server to a file named backup.sql, using root credentials for authentication.",
+      "tokens": 48,
+      "tok_per_sec": 70.1,
+      "vram_mb": 3897,
+      "rag_context": "",
+      "command": "mysqldump -u root -p --all-databases > backup.sql",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I create a SQLite database and run a query from the command line?",
+      "domain": "database",
+      "response": "```bash\nsqlite3 /home/admin/notes.db \"SELECT * FROM contacts;\"\n```\nThis command creates a new SQLite database file if it doesn't exist, then immediately executes a SELECT query against the 'contacts' table.",
+      "tokens": 51,
+      "tok_per_sec": 70.9,
+      "vram_mb": 3897,
+      "rag_context": "",
+      "command": "sqlite3 /home/admin/notes.db \"SELECT * FROM contacts;\"",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I restore a PostgreSQL database from a pg_dump backup?",
+      "domain": "database",
+      "response": "```bash\npsql -U postgres -d backup_db -f /path/to/backup.sql\n```\nThis command connects to the backup database and executes all SQL statements from the dump file to restore it.",
+      "tokens": 47,
+      "tok_per_sec": 70.6,
+      "vram_mb": 3897,
+      "rag_context": "",
+      "command": "psql -U postgres -d backup_db -f /path/to/backup.sql",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I check the size of all databases in PostgreSQL?",
+      "domain": "database",
+      "response": "```bash\npsql -U postgres -c \"\\l\"\n```\nDisplays a list of all databases in the PostgreSQL cluster with their sizes and table counts.",
+      "tokens": 37,
+      "tok_per_sec": 70.0,
+      "vram_mb": 3897,
+      "rag_context": "",
+      "command": "psql -U postgres -c \"\\l\"",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I use ssh-agent to avoid typing my SSH passphrase repeatedly?",
+      "domain": "devops",
+      "response": "```bash\nssh-add ~/.ssh/id_ed25519\n```\nThis command adds your Ed25519 private key to the SSH agent, allowing it to store and automatically use your passphrase for authentication without manual entry.",
+      "tokens": 53,
+      "tok_per_sec": 71.3,
+      "vram_mb": 3896,
+      "rag_context": "",
+      "command": "ssh-add ~/.ssh/id_ed25519",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I set up log rotation with logrotate for a custom application?",
+      "domain": "devops",
+      "response": "```bash\nsudo tee /etc/logrotate.d/myapp << 'EOF'\n/var/log/myapp/*.log {\n    daily\n    rotate 7\n    compress\n    delaycompress\n    missingok\n    notifempty\n    create 644 myapp myapp\n}\nEOF\n```\nCreates a logrotate configuration file that rotates daily, keeps 7 days of logs, compresses old logs, and creates new empty log files after rotation.",
+      "tokens": 100,
+      "tok_per_sec": 73.5,
+      "vram_mb": 3877,
+      "rag_context": "",
+      "command": "sudo tee /etc/logrotate.d/myapp << 'EOF'\n/var/log/myapp/*.log {\n    daily\n    rotate 7\n    compress\n    delaycompress\n    missingok\n    notifempty\n    create 644 myapp myapp\n}\nEOF",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I create a cron job that logs its output with timestamps?",
+      "domain": "devops",
+      "response": "```bash\necho \"0 2 * * * /usr/local/bin/backup.sh | tee -a /var/log/backup.log\" | crontab -\n```",
+      "tokens": 40,
+      "tok_per_sec": 69.6,
+      "vram_mb": 3877,
+      "rag_context": "",
+      "command": "echo \"0 2 * * * /usr/local/bin/backup.sh | tee -a /var/log/backup.log\" | crontab -",
+      "validator": {
+        "ok": true,
+        "warn": "echo: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I use envsubst to substitute environment variables in a config template?",
+      "domain": "devops",
+      "response": "```bash\nenvsubst < /etc/ssl/ssl.conf > /etc/ssl/ssl.conf.new\n```\nThe `envsubst` command reads a template file, replaces `$`-prefixed variable names with their environment variable values, and outputs the result.",
+      "tokens": 59,
+      "tok_per_sec": 71.4,
+      "vram_mb": 3883,
+      "rag_context": "",
+      "command": "envsubst < /etc/ssl/ssl.conf > /etc/ssl/ssl.conf.new",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I write a health check script that curls an endpoint and alerts on failure?",
+      "domain": "devops",
+      "response": "```bash\n#!/bin/bash\ncurl -f https://api.example.com/health || curl_exit_code=$?; if [ $curl_exit_code -ne 0 ]; then echo \"Health check failed\"; exit 1; fi\n```",
+      "tokens": 53,
+      "tok_per_sec": 69.2,
+      "vram_mb": 3883,
+      "rag_context": "",
+      "command": "#!/bin/bash\ncurl -f https://api.example.com/health || curl_exit_code=$?; if [ $curl_exit_code -ne 0 ]; then echo \"Health check failed\"; exit 1; fi",
+      "validator": {
+        "ok": true,
+        "warn": "bash: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "Which process is using the most network bandwidth?",
+      "domain": "harness",
+      "response": "```bash\nlsof -n -i | awk '{sum+=$10} END {print sum}'\n```\nAggregates all network-related statistics across all processes to find total bandwidth usage.",
+      "tokens": 47,
+      "tok_per_sec": 69.4,
+      "vram_mb": 3886,
+      "rag_context": "lsof: -c -d -i -n -O -R -T -V",
+      "command": "lsof -n -i | awk '{sum+=$10} END {print sum}'",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "Show me network connections grouped by process",
+      "domain": "harness",
+      "response": "```bash\nss -tunap | awk '{print $NF,$10,$11}' | sort -k3 -n -r | uniq -c | sort -nr | awk '{print $2,$3,$4,$1,$5,$6,$7}'\n```\nFormats output to show process name, PID, local address, remote address, state, and process path grouped by process.",
+      "tokens": 88,
+      "tok_per_sec": 72.7,
+      "vram_mb": 3885,
+      "rag_context": "",
+      "command": "ss -tunap | awk '{print $NF,$10,$11}' | sort -k3 -n -r | uniq -c | sort -nr | awk '{print $2,$3,$4,$1,$5,$6,$7}'",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "Find all open files for a specific process",
+      "domain": "harness",
+      "response": "```bash\nlsof -p $PID\n```\nDisplays all open file descriptors associated with the process having the specified PID.",
+      "tokens": 31,
+      "tok_per_sec": 68.2,
+      "vram_mb": 3883,
+      "rag_context": "",
+      "command": "lsof -p $PID",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "Which process is writing to /var/log/syslog?",
+      "domain": "harness",
+      "response": "```bash\nlsof /var/log/syslog\n```\nLists all open file descriptors for syslog, showing which processes have write access to the log file.",
+      "tokens": 37,
+      "tok_per_sec": 66.8,
+      "vram_mb": 3900,
+      "rag_context": "lsof: -c -d -i -n -O -R -T -V",
+      "command": "lsof /var/log/syslog",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I make my system faster?",
+      "domain": "harness",
+      "response": "```bash\nsudo sysctl -w vm.swappiness=10\n```\nReduces the likelihood of the kernel swapping memory to disk, which improves performance for systems with sufficient physical RAM.",
+      "tokens": 43,
+      "tok_per_sec": 67.3,
+      "vram_mb": 3918,
+      "rag_context": "",
+      "command": "sudo sysctl -w vm.swappiness=10",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "Something is wrong with my computer",
+      "domain": "harness",
+      "response": "```bash\ndmesg | tail -30\n```\nDisplays the last 30 kernel messages to identify hardware or boot-time errors.",
+      "tokens": 34,
+      "tok_per_sec": 64.3,
+      "vram_mb": 3918,
+      "rag_context": "",
+      "command": "dmesg | tail -30",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "What are inodes?",
+      "domain": "harness",
+      "response": "```bash\nls -i /home/admin\n```\nThis command displays the inode numbers for all files in the /home/admin directory, where the inode is a unique identifier assigned by the filesystem to every file.",
+      "tokens": 47,
+      "tok_per_sec": 66.7,
+      "vram_mb": 3920,
+      "rag_context": "",
+      "command": "ls -i /home/admin",
+      "validator": {
+        "ok": true,
+        "warn": "ls: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "Explain how pipes work in Unix",
+      "domain": "harness",
+      "response": "```bash\necho \"Hello\" | wc -l\n```\nPipes connect the standard output of a command to the standard input of another, allowing data to flow from one process to another.",
+      "tokens": 44,
+      "tok_per_sec": 69.2,
+      "vram_mb": 3918,
+      "rag_context": "",
+      "command": "echo \"Hello\" | wc -l",
+      "validator": {
+        "ok": true,
+        "warn": "echo: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "Tell me about Linux permissions",
+      "domain": "harness",
+      "response": "```bash\nstat -c '%A %U %G %s' /home/admin\n```\nDisplays the permission string, owner, group, and size of a file to show read/write/execute rights for the owner, group, and others.",
+      "tokens": 55,
+      "tok_per_sec": 71.7,
+      "vram_mb": 3917,
+      "rag_context": "",
+      "command": "stat -c '%A %U %G %s' /home/admin",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How does cron work?",
+      "domain": "harness",
+      "response": "```bash\ncrontab -l\n```\nDisplays the currently active cron jobs for the current user, showing scheduled times and corresponding commands.",
+      "tokens": 33,
+      "tok_per_sec": 67.7,
+      "vram_mb": 3917,
+      "rag_context": "",
+      "command": "crontab -l",
+      "validator": {
+        "ok": true
+      }
+    },
+    {
+      "question": "How do I set up a Python virtual environment?",
+      "domain": "harness",
+      "response": "```bash\npython3 -m venv /path/to/venv\n```\nCreates an isolated Python environment in the specified directory containing its own Python interpreter and site-packages.",
+      "tokens": 40,
+      "tok_per_sec": 67.5,
+      "vram_mb": 3917,
+      "rag_context": "",
+      "command": "python3 -m venv /path/to/venv",
+      "validator": {
+        "ok": true,
+        "warn": "python3: not in help_db, skipping flag validation"
+      }
+    },
+    {
+      "question": "How do I configure nginx as a reverse proxy?",
+      "domain": "harness",
+      "response": "```bash\nsudo nano /etc/nginx/sites-available/proxy\n```\nThis opens the nginx site configuration file where you can define upstream servers and proxy_pass directives to forward requests to backend services.",
+      "tokens": 43,
+      "tok_per_sec": 69.9,
+      "vram_mb": 3917,
+      "rag_context": "",
+      "command": "sudo nano /etc/nginx/sites-available/proxy",
+      "validator": {
+        "ok": true
+      }
+    }
+  ]
+}
