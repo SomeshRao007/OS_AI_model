@@ -45,14 +45,23 @@ class SessionContext:
     def recent_turns(self, n: int = 5) -> list[Turn]:
         return self._turns[-n:]
 
-    def get_context_string(self, n: int = 3) -> str:
-        """Format recent turns for prompt injection."""
+    def get_context_string(self, n: int = 3, max_chars_per_turn: int = 120) -> str:
+        """Format recent turns for compact prompt injection.
+
+        Each turn is truncated to fit within the token budget. Domain tags
+        give the model critical context (e.g. "domain: process" tells it the
+        user was working with system tools, not databases).
+        """
         turns = self.recent_turns(n)
         if not turns:
             return ""
-        lines = []
-        for t in turns:
-            lines.append(f"Previous Q: {t.query}\nA: {t.response}")
+        lines = ["Recent session:"]
+        for i, t in enumerate(turns, 1):
+            q = t.query[:60]
+            # Extract just the command or first line of response
+            resp = t.response.strip().split("\n")[0][:60]
+            line = f"[{i}] Q: {q} | A: {resp} (domain: {t.domain})"
+            lines.append(line[:max_chars_per_turn])
         return "\n".join(lines)
 
     def set_meta(self, key: str, value) -> None:

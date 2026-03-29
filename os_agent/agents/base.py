@@ -74,10 +74,15 @@ class BaseAgent(ABC):
         """Public accessor for the memory-augmented system prompt."""
         return self._augmented_prompt(query)
 
-    def augmented_prompt_with_context(self, query: str, env_context: str) -> str:
-        """Memory-augmented prompt with environment context for AI mode."""
+    def augmented_prompt_with_context(
+        self, query: str, env_context: str, session_context: str = ""
+    ) -> str:
+        """Memory-augmented prompt with environment and session context for AI mode."""
         base = self._augmented_prompt(query)
-        return f"{base}\n\nEnvironment:\n{env_context}"
+        prompt = f"{base}\n\nEnvironment:\n{env_context}"
+        if session_context:
+            prompt = f"{prompt}\n\n{session_context}"
+        return prompt
 
     @abstractmethod
     def handle(self, query: str, engine: InferenceEngine) -> AgentResponse:

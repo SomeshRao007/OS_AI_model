@@ -205,6 +205,8 @@ class NeuroshShell:
             # Direct bash command detection
             if self._looks_like_bash(raw):
                 self._handle_terminal(raw)
+                # Record in session so subsequent AI queries know what was run
+                self._master.session.add_turn(raw, "terminal", f"(ran: {raw})")
                 return
 
             # Route through agent framework
@@ -212,7 +214,8 @@ class NeuroshShell:
             agent = self._master.get_agent(domain)
 
             env_ctx = self._env_context.full_context()
-            prompt = agent.augmented_prompt_with_context(raw, env_ctx)
+            session_ctx = self._master.session.get_context_string(n=5)
+            prompt = agent.augmented_prompt_with_context(raw, env_ctx, session_ctx)
 
             # Collect response silently (don't stream raw markdown to terminal)
             try:
