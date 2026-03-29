@@ -27,6 +27,7 @@ from os_agent.shell.context import EnvironmentContext
 from os_agent.shell.history import ShellHistory
 from os_agent.shell.modes import ModeManager, ShellMode
 from os_agent.shell.renderer import Renderer, NEUROSH_STYLE
+from os_agent.notify.desktop import DesktopNotifier, check_vram_and_warn
 from os_agent.tools.executor import SandboxedExecutor, RiskLevel
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -89,6 +90,7 @@ class NeuroshShell:
 
         self._env_context = EnvironmentContext()
         self._executor = SandboxedExecutor(config.get("sandbox", {}))
+        self._notifier = DesktopNotifier(config.get("notify", {}))
 
         vram = self._engine.get_vram_usage()
         self._renderer.print_welcome(vram)
@@ -217,6 +219,9 @@ class NeuroshShell:
             session_ctx = self._master.session.get_context_string(n=5)
             prompt = agent.augmented_prompt_with_context(raw, env_ctx, session_ctx)
 
+            # VRAM check before inference — desktop alert if low
+            check_vram_and_warn(self._engine, self._notifier)
+
             # Collect response silently (don't stream raw markdown to terminal)
             try:
                 result = self._engine.infer_validated(prompt, raw)
@@ -257,6 +262,10 @@ class NeuroshShell:
             risk = self._executor.classify_risk(command)
             in_domain = self._executor.check_domain_allowed(command, domain)
             vague = self._is_vague_query(raw)
+
+            # Desktop notification for commands that need confirmation
+            if risk != RiskLevel.SAFE or not in_domain or vague:
+                self._notifier.warn_dangerous_command(command, risk.value, domain)
 
             if vague:
                 # Vague query — show model's interpretation, force confirmation

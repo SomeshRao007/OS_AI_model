@@ -25,6 +25,11 @@ memory:
   faiss_dims: 384  # all-MiniLM-L6-v2 embedding size
   max_vectors_per_domain: 500
 
+notify:
+  enabled: true
+  vram_threshold_mb: 500       # warn when free VRAM drops below this (MB)
+  notify_on_moderate: false    # only notify on dangerous commands by default
+
 sandbox:
   enabled: true
   timeout_seconds: 30
