@@ -1,7 +1,7 @@
 """Shared evaluation question bank for the OS AI agent.
 
-Contains ~130 questions organized by category, difficulty, and test type.
-Used by test_inference.py, eval_gguf.py, and master.py routing tests.
+Contains ~170 questions organized by category, difficulty, and test type.
+Used by test_inference.py, test_harness.py, and master.py routing tests.
 
 Each question is a dict with:
   - q: the question string
@@ -26,245 +26,270 @@ class EvalQuestion:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# ORIGINAL 44 QUESTIONS (preserved exactly)
+# ORIGINAL 44 QUESTIONS — natural dev/DevOps phrasing
 # ═══════════════════════════════════════════════════════════════════════════
 
 _ORIGINAL_44: list[EvalQuestion] = [
     # --- File operations (6) ---
-    EvalQuestion("Find all files larger than 100MB on Linux", "files", "files", "basic", "command"),
-    EvalQuestion("Find files modified in the last 24 hours in /var/log", "files", "files", "basic", "command"),
-    EvalQuestion("Recursively search for the string 'ERROR' in all .log files under /var", "files", "files", "basic", "command"),
-    EvalQuestion("What does chmod 755 do and when would you use it?", "files", "files", "basic", "conceptual"),
-    EvalQuestion("How do I change the owner of a directory and all its contents?", "files", "files", "basic", "command"),
-    EvalQuestion("How do I create a symbolic link?", "files", "files", "basic", "command"),
+    EvalQuestion("what files are taking the most space in this folder", "files", "files", "basic", "command"),
+    EvalQuestion("show me log files changed in the last 24 hours under /var/log", "files", "files", "basic", "command"),
+    EvalQuestion("grep for ERROR in all .log files under /var recursively", "files", "files", "basic", "command"),
+    EvalQuestion("when should I use 755 vs 644 permissions", "files", "files", "basic", "conceptual"),
+    EvalQuestion("change owner of /opt/app and everything inside it to deploy user", "files", "files", "basic", "command"),
+    EvalQuestion("create a symlink from /etc/nginx/sites-enabled/myapp to sites-available/myapp", "files", "files", "basic", "command"),
 
     # --- Networking & SSH (7) ---
-    EvalQuestion("List all open TCP ports on the system", "networking", "network", "basic", "command"),
-    EvalQuestion("Generate an SSH key pair and add it to authorized_keys", "networking", "network", "basic", "command"),
-    EvalQuestion("How do I copy a file to a remote server using SCP?", "networking", "network", "basic", "command"),
-    EvalQuestion("How do I check my current IP address on Linux?", "networking", "network", "basic", "command"),
-    EvalQuestion("How do I test if a remote port is open without telnet?", "networking", "network", "basic", "command"),
-    EvalQuestion("How do I block port 22 with iptables?", "networking", "network", "basic", "command"),
-    EvalQuestion("How do I use rsync to sync a local folder to a remote server?", "networking", "network", "basic", "command"),
+    EvalQuestion("list all open TCP ports on this box", "networking", "network", "basic", "command"),
+    EvalQuestion("generate an ed25519 SSH key for deploy@prod", "networking", "network", "basic", "command"),
+    EvalQuestion("scp the config.tar.gz to 10.0.1.5:/tmp/", "networking", "network", "basic", "command"),
+    EvalQuestion("what's my IP", "networking", "network", "basic", "command"),
+    EvalQuestion("check if port 443 is open on 10.0.1.5 without telnet", "networking", "network", "basic", "command"),
+    EvalQuestion("block incoming traffic on port 22 with iptables", "networking", "network", "basic", "command"),
+    EvalQuestion("rsync /var/www/ to backup@10.0.1.5:/backups/www/", "networking", "network", "basic", "command"),
 
     # --- Process & resource management (6) ---
-    EvalQuestion("How do I check disk usage broken down by directory?", "process", "process", "basic", "command"),
-    EvalQuestion("How do I kill a process by name without knowing its PID?", "process", "process", "basic", "command"),
-    EvalQuestion("Show me how to find which process is using the most memory", "process", "process", "basic", "command"),
-    EvalQuestion("How do I run a process in the background and keep it after SSH logout?", "process", "process", "basic", "command"),
-    EvalQuestion("How do I schedule a cron job to run a script every day at midnight?", "process", "process", "basic", "command"),
-    EvalQuestion("How do I check CPU and memory usage in real time?", "process", "process", "basic", "command"),
+    EvalQuestion("show me disk usage by directory", "process", "process", "basic", "command"),
+    EvalQuestion("kill the node process that's stuck", "process", "process", "basic", "command"),
+    EvalQuestion("which process is using the most memory right now", "process", "process", "basic", "command"),
+    EvalQuestion("run this script in the background so it survives SSH logout", "process", "process", "basic", "command"),
+    EvalQuestion("set up a cron that runs backup.sh every night at midnight", "process", "process", "basic", "command"),
+    EvalQuestion("show me CPU and memory usage in real time", "process", "process", "basic", "command"),
 
     # --- User & permission management (4) ---
-    EvalQuestion("How do I add a user to the sudo group?", "users", "process", "basic", "command"),
-    EvalQuestion("How do I create a new user with a home directory?", "users", "process", "basic", "command"),
-    EvalQuestion("How do I lock a user account without deleting it?", "users", "process", "basic", "command"),
-    EvalQuestion("How do I view all groups a user belongs to?", "users", "process", "basic", "command"),
+    EvalQuestion("add user jenkins to the sudo group", "users", "process", "basic", "command"),
+    EvalQuestion("create a new user deploy with a home directory", "users", "process", "basic", "command"),
+    EvalQuestion("lock the intern account without deleting it", "users", "process", "basic", "command"),
+    EvalQuestion("what groups does the deploy user belong to", "users", "process", "basic", "command"),
 
     # --- Package & service management (4) ---
-    EvalQuestion("How do I install a .deb package manually?", "packages", "packages", "basic", "command"),
-    EvalQuestion("How do I start, stop, and restart a systemd service?", "packages", "process", "basic", "command"),
-    EvalQuestion("How do I check if a service is enabled on boot with systemd?", "packages", "process", "basic", "command"),
-    EvalQuestion("How do I find which package owns a specific file on Debian/Ubuntu?", "packages", "packages", "basic", "command"),
+    EvalQuestion("install this .deb package I downloaded", "packages", "packages", "basic", "command"),
+    EvalQuestion("restart the nginx service", "packages", "process", "basic", "command"),
+    EvalQuestion("check if postgres is set to start on boot", "packages", "process", "basic", "command"),
+    EvalQuestion("which package owns /usr/bin/curl", "packages", "packages", "basic", "command"),
 
     # --- Text processing (4) ---
-    EvalQuestion("How do I extract the 3rd column from a space-separated file using awk?", "text", "files", "basic", "command"),
-    EvalQuestion("How do I replace all occurrences of 'foo' with 'bar' in a file using sed?", "text", "files", "basic", "command"),
-    EvalQuestion("How do I count lines, words, and characters in a file?", "text", "files", "basic", "command"),
-    EvalQuestion("How do I sort a file and remove duplicate lines?", "text", "files", "basic", "command"),
+    EvalQuestion("grab the 3rd column from this space-separated file with awk", "text", "files", "basic", "command"),
+    EvalQuestion("replace all occurrences of localhost with 0.0.0.0 in config.yaml", "text", "files", "basic", "command"),
+    EvalQuestion("count lines, words, and characters in access.log", "text", "files", "basic", "command"),
+    EvalQuestion("sort this file and remove duplicate lines", "text", "files", "basic", "command"),
 
     # --- Storage & archiving (4) ---
-    EvalQuestion("How do I mount a USB drive on Linux?", "storage", "files", "basic", "command"),
-    EvalQuestion("How do I check available disk space on all mounted filesystems?", "storage", "files", "basic", "command"),
-    EvalQuestion("How do I create a compressed tar.gz archive of a directory?", "storage", "files", "basic", "command"),
-    EvalQuestion("How do I find and delete files older than 30 days?", "storage", "files", "basic", "command"),
+    EvalQuestion("mount the USB drive at /dev/sdb1 to /mnt/usb", "storage", "files", "basic", "command"),
+    EvalQuestion("show free disk space on all mounted filesystems", "storage", "files", "basic", "command"),
+    EvalQuestion("tar and gzip the /opt/app directory for backup", "storage", "files", "basic", "command"),
+    EvalQuestion("find and delete log files older than 30 days under /var/log", "storage", "files", "basic", "command"),
 
     # --- Kernel / OS concepts (5) ---
-    EvalQuestion("What is a Linux kernel module and how do you load one?", "kernel", "kernel", "basic", "conceptual"),
-    EvalQuestion("Explain the difference between a process and a thread in Linux", "kernel", "kernel", "basic", "conceptual"),
-    EvalQuestion("How does virtual memory paging work in Linux?", "kernel", "kernel", "basic", "conceptual"),
-    EvalQuestion("What is the purpose of the /proc filesystem?", "kernel", "kernel", "basic", "conceptual"),
-    EvalQuestion("How do I check the current kernel version and build info?", "kernel", "kernel", "basic", "command"),
+    EvalQuestion("what is a kernel module and how do I load one", "kernel", "kernel", "basic", "conceptual"),
+    EvalQuestion("what's the difference between a process and a thread", "kernel", "kernel", "basic", "conceptual"),
+    EvalQuestion("how does virtual memory paging work in Linux", "kernel", "kernel", "basic", "conceptual"),
+    EvalQuestion("what is /proc used for", "kernel", "kernel", "basic", "conceptual"),
+    EvalQuestion("show me the kernel version and build info", "kernel", "kernel", "basic", "command"),
 
     # --- Shell scripting (4) ---
-    EvalQuestion("Write a bash script that checks if a file exists and prints a message", "scripting", "files", "basic", "command"),
-    EvalQuestion("How do I loop over all .log files in a directory in bash?", "scripting", "files", "basic", "command"),
-    EvalQuestion("How do I capture the output of a command into a variable in bash?", "scripting", "files", "basic", "command"),
-    EvalQuestion("How do I pass arguments to a bash script and validate them?", "scripting", "files", "basic", "command"),
+    EvalQuestion("write a bash snippet that checks if /tmp/lock.pid exists before proceeding", "scripting", "files", "basic", "command"),
+    EvalQuestion("loop over all .log files in /var/log and print their sizes", "scripting", "files", "basic", "command"),
+    EvalQuestion("capture the output of date into a variable in bash", "scripting", "files", "basic", "command"),
+    EvalQuestion("validate that a bash script got exactly 2 arguments", "scripting", "files", "basic", "command"),
 ]
 
 # ═══════════════════════════════════════════════════════════════════════════
-# NEW: INTERMEDIATE/ADVANCED QUESTIONS PER EXISTING DOMAIN (~44 new)
+# INTERMEDIATE/ADVANCED QUESTIONS PER EXISTING DOMAIN (~44)
 # ═══════════════════════════════════════════════════════════════════════════
 
 _DOMAIN_EXPANDED: list[EvalQuestion] = [
     # --- Files: advanced (6) ---
-    EvalQuestion("Find all setuid files on the system", "files", "files", "intermediate", "command"),
-    EvalQuestion("How do I find duplicate files by content across two directories?", "files", "files", "intermediate", "command"),
-    EvalQuestion("How do I recursively change permissions on only directories, not files?", "files", "files", "intermediate", "command"),
-    EvalQuestion("How do I watch a directory for new files being created in real time?", "files", "files", "advanced", "command"),
-    EvalQuestion("What is the difference between hard links and soft links?", "files", "files", "intermediate", "conceptual"),
-    EvalQuestion("How do I find all files owned by a specific user across the system?", "files", "files", "intermediate", "command"),
+    EvalQuestion("find all setuid binaries on the system", "files", "files", "intermediate", "command"),
+    EvalQuestion("find duplicate files by content in /opt/uploads and /var/data", "files", "files", "intermediate", "command"),
+    EvalQuestion("recursively change permissions on directories only, leave files alone", "files", "files", "intermediate", "command"),
+    EvalQuestion("watch /var/spool/incoming for new files being created", "files", "files", "advanced", "command"),
+    EvalQuestion("what's the difference between hard links and symlinks", "files", "files", "intermediate", "conceptual"),
+    EvalQuestion("find all files owned by the old admin user across the system", "files", "files", "intermediate", "command"),
 
     # --- Networking: advanced (6) ---
-    EvalQuestion("How do I set up an SSH tunnel to forward a remote port to localhost?", "networking", "network", "intermediate", "command"),
-    EvalQuestion("How do I flush the DNS cache on Linux?", "networking", "network", "intermediate", "command"),
-    EvalQuestion("How do I capture network traffic on a specific interface with tcpdump?", "networking", "network", "advanced", "command"),
-    EvalQuestion("What is the difference between TCP and UDP?", "networking", "network", "intermediate", "conceptual"),
-    EvalQuestion("How do I check which process is listening on a specific port?", "networking", "network", "intermediate", "command"),
-    EvalQuestion("How do I add a static route on Linux?", "networking", "network", "advanced", "command"),
+    EvalQuestion("tunnel port 5432 from the remote db server to my localhost", "networking", "network", "intermediate", "command"),
+    EvalQuestion("flush the DNS cache on this machine", "networking", "network", "intermediate", "command"),
+    EvalQuestion("capture HTTP traffic on eth0 with tcpdump, only port 80", "networking", "network", "advanced", "command"),
+    EvalQuestion("what's the difference between TCP and UDP", "networking", "network", "intermediate", "conceptual"),
+    EvalQuestion("which process is listening on port 8080", "networking", "network", "intermediate", "command"),
+    EvalQuestion("add a static route to 10.10.0.0/16 via 192.168.1.1", "networking", "network", "advanced", "command"),
 
     # --- Process: advanced (6) ---
-    EvalQuestion("How do I send a SIGHUP signal to a process to reload its config?", "process", "process", "intermediate", "command"),
-    EvalQuestion("How do I limit the CPU usage of a process using cgroups?", "process", "process", "advanced", "command"),
-    EvalQuestion("What are zombie processes and how do I clean them up?", "process", "process", "intermediate", "conceptual"),
-    EvalQuestion("How do I trace system calls made by a running process?", "process", "process", "advanced", "command"),
-    EvalQuestion("How do I find all child processes of a given PID?", "process", "process", "intermediate", "command"),
-    EvalQuestion("How do I set process priority with nice and renice?", "process", "process", "intermediate", "command"),
+    EvalQuestion("send SIGHUP to nginx to reload its config", "process", "process", "intermediate", "command"),
+    EvalQuestion("cap the ffmpeg process to 50% CPU using cgroups", "process", "process", "advanced", "command"),
+    EvalQuestion("what are zombie processes and how do I clean them up", "process", "process", "intermediate", "conceptual"),
+    EvalQuestion("trace system calls from the running redis process", "process", "process", "advanced", "command"),
+    EvalQuestion("show all child processes of PID 1234", "process", "process", "intermediate", "command"),
+    EvalQuestion("lower the priority of this backup job with nice", "process", "process", "intermediate", "command"),
 
     # --- Users: advanced (4) ---
-    EvalQuestion("How do I set up passwordless sudo for a specific command?", "users", "process", "intermediate", "command"),
-    EvalQuestion("How do I set a password expiration policy for a user?", "users", "process", "intermediate", "command"),
-    EvalQuestion("What is PAM and how does it handle authentication in Linux?", "users", "process", "advanced", "conceptual"),
-    EvalQuestion("How do I set file ACLs with setfacl to give a specific user read access?", "users", "files", "advanced", "command"),
+    EvalQuestion("let the deploy user run systemctl restart nginx without a password", "users", "process", "intermediate", "command"),
+    EvalQuestion("set password expiry to 90 days for user alice", "users", "process", "intermediate", "command"),
+    EvalQuestion("what is PAM and how does it handle authentication", "users", "process", "advanced", "conceptual"),
+    EvalQuestion("give user bob read-only access to /var/log/app using ACLs", "users", "files", "advanced", "command"),
 
     # --- Packages: advanced (4) ---
-    EvalQuestion("How do I pin a package to prevent it from being upgraded?", "packages", "packages", "intermediate", "command"),
-    EvalQuestion("How do I add a third-party PPA repository on Ubuntu?", "packages", "packages", "intermediate", "command"),
-    EvalQuestion("How do I list all installed packages sorted by size?", "packages", "packages", "intermediate", "command"),
-    EvalQuestion("How do I build and install a package from source using configure, make, make install?", "packages", "packages", "advanced", "command"),
+    EvalQuestion("pin the postgresql package so it doesn't get upgraded", "packages", "packages", "intermediate", "command"),
+    EvalQuestion("add the deadsnakes PPA for Python 3.12 on Ubuntu", "packages", "packages", "intermediate", "command"),
+    EvalQuestion("list all installed packages sorted by size", "packages", "packages", "intermediate", "command"),
+    EvalQuestion("build and install this project from source using configure and make", "packages", "packages", "advanced", "command"),
 
     # --- Text processing: advanced (4) ---
-    EvalQuestion("How do I use awk to sum a numeric column in a CSV file?", "text", "files", "intermediate", "command"),
-    EvalQuestion("How do I extract JSON values from a file using jq?", "text", "files", "intermediate", "command"),
-    EvalQuestion("How do I use sed to delete all blank lines from a file?", "text", "files", "intermediate", "command"),
-    EvalQuestion("How do I find lines matching a regex pattern that spans multiple words?", "text", "files", "intermediate", "command"),
+    EvalQuestion("sum the values in column 3 of this CSV with awk", "text", "files", "intermediate", "command"),
+    EvalQuestion("extract the status field from response.json using jq", "text", "files", "intermediate", "command"),
+    EvalQuestion("delete all blank lines from this config file with sed", "text", "files", "intermediate", "command"),
+    EvalQuestion("grep for lines matching 'error.*timeout' in the logs", "text", "files", "intermediate", "command"),
 
     # --- Storage: advanced (4) ---
-    EvalQuestion("How do I create and manage LVM logical volumes?", "storage", "files", "advanced", "command"),
-    EvalQuestion("How do I add an entry to /etc/fstab to auto-mount a partition at boot?", "storage", "files", "advanced", "command"),
-    EvalQuestion("What is the difference between ext4 and XFS filesystems?", "storage", "files", "advanced", "conceptual"),
-    EvalQuestion("How do I check and repair a filesystem with fsck?", "storage", "files", "advanced", "command"),
+    EvalQuestion("create an LVM logical volume from the free space on vg0", "storage", "files", "advanced", "command"),
+    EvalQuestion("add an fstab entry to auto-mount /dev/sdb1 at /data on boot", "storage", "files", "advanced", "command"),
+    EvalQuestion("what's the difference between ext4 and XFS", "storage", "files", "advanced", "conceptual"),
+    EvalQuestion("run fsck on /dev/sda2 to check for errors", "storage", "files", "advanced", "command"),
 
     # --- Kernel: advanced (5) ---
-    EvalQuestion("What are Linux namespaces and how are they used for containers?", "kernel", "kernel", "advanced", "conceptual"),
-    EvalQuestion("How do I read kernel ring buffer messages with dmesg?", "kernel", "kernel", "intermediate", "command"),
-    EvalQuestion("What is eBPF and what is it used for in modern Linux?", "kernel", "kernel", "advanced", "conceptual"),
-    EvalQuestion("How do I change a kernel parameter at runtime using sysctl?", "kernel", "kernel", "intermediate", "command"),
-    EvalQuestion("What is the difference between user space and kernel space?", "kernel", "kernel", "advanced", "conceptual"),
+    EvalQuestion("what are Linux namespaces and how do containers use them", "kernel", "kernel", "advanced", "conceptual"),
+    EvalQuestion("show kernel ring buffer messages since last boot with dmesg", "kernel", "kernel", "intermediate", "command"),
+    EvalQuestion("what is eBPF and what's it used for", "kernel", "kernel", "advanced", "conceptual"),
+    EvalQuestion("set vm.swappiness to 10 at runtime with sysctl", "kernel", "kernel", "intermediate", "command"),
+    EvalQuestion("what's the difference between user space and kernel space", "kernel", "kernel", "advanced", "conceptual"),
 
     # --- Scripting: advanced (5) ---
-    EvalQuestion("How do I write a bash function that returns a value?", "scripting", "files", "intermediate", "command"),
-    EvalQuestion("How do I use trap to handle signals in a bash script?", "scripting", "files", "advanced", "command"),
-    EvalQuestion("How do I use bash arrays to iterate over a list of items?", "scripting", "files", "intermediate", "command"),
-    EvalQuestion("How do I redirect both stdout and stderr to a file in bash?", "scripting", "files", "intermediate", "command"),
-    EvalQuestion("How do I write a bash script with a case statement for menu options?", "scripting", "files", "intermediate", "command"),
+    EvalQuestion("write a bash function that returns the disk usage percentage", "scripting", "files", "intermediate", "command"),
+    EvalQuestion("use trap to clean up temp files on script exit", "scripting", "files", "advanced", "command"),
+    EvalQuestion("iterate over a bash array of server hostnames and ping each", "scripting", "files", "intermediate", "command"),
+    EvalQuestion("redirect both stdout and stderr to /var/log/deploy.log", "scripting", "files", "intermediate", "command"),
+    EvalQuestion("write a bash case statement for start/stop/restart/status", "scripting", "files", "intermediate", "command"),
 ]
 
 # ═══════════════════════════════════════════════════════════════════════════
-# NEW: DEVELOPER-LEVEL QUESTIONS (~50)
-# These are intentionally harder and many fall outside the fine-tuning data.
-# They test whether base knowledge survives fine-tuning AND whether the
-# agent harness routes/handles them gracefully.
+# DEVELOPER-LEVEL QUESTIONS (~50)
+# Harder questions outside the fine-tuning data. Tests whether base
+# knowledge survives fine-tuning AND whether the harness handles them.
 # ═══════════════════════════════════════════════════════════════════════════
 
 _DEVELOPER: list[EvalQuestion] = [
     # --- Git Advanced (8) ---
-    EvalQuestion("How do I use git bisect to find the commit that introduced a bug?", "git", "files", "developer", "command"),
-    EvalQuestion("How do I cherry-pick a commit from another branch?", "git", "files", "developer", "command"),
-    EvalQuestion("How do I recover a dropped stash using git reflog?", "git", "files", "developer", "command"),
-    EvalQuestion("How do I set up a git pre-commit hook that runs linting?", "git", "files", "developer", "command"),
-    EvalQuestion("How do I squash the last 3 commits into one?", "git", "files", "developer", "command"),
-    EvalQuestion("How do I clone only a specific branch with shallow history?", "git", "files", "developer", "command"),
-    EvalQuestion("How do I use git worktree to work on multiple branches simultaneously?", "git", "files", "developer", "command"),
-    EvalQuestion("How do I resolve a merge conflict in git from the command line?", "git", "files", "developer", "command"),
+    EvalQuestion("bisect to find which commit broke the tests", "git", "files", "developer", "command"),
+    EvalQuestion("cherry-pick commit abc123 from the release branch", "git", "files", "developer", "command"),
+    EvalQuestion("recover a stash I accidentally dropped using reflog", "git", "files", "developer", "command"),
+    EvalQuestion("set up a pre-commit hook that runs flake8", "git", "files", "developer", "command"),
+    EvalQuestion("squash the last 3 commits into one", "git", "files", "developer", "command"),
+    EvalQuestion("shallow clone only the main branch of this repo", "git", "files", "developer", "command"),
+    EvalQuestion("set up a git worktree so I can work on the hotfix branch without switching", "git", "files", "developer", "command"),
+    EvalQuestion("resolve this merge conflict from the command line", "git", "files", "developer", "command"),
 
     # --- Docker / Containers (8) ---
-    EvalQuestion("How do I build a Docker image from a Dockerfile?", "docker", "files", "developer", "command"),
-    EvalQuestion("How do I run a Docker container with a mounted volume?", "docker", "files", "developer", "command"),
-    EvalQuestion("How do I list all running Docker containers and their resource usage?", "docker", "process", "developer", "command"),
-    EvalQuestion("How do I exec into a running Docker container to debug it?", "docker", "process", "developer", "command"),
-    EvalQuestion("How do I view logs from a Docker container?", "docker", "process", "developer", "command"),
-    EvalQuestion("How do I remove all stopped containers and unused images to free disk space?", "docker", "process", "developer", "command"),
-    EvalQuestion("How do I create a Docker network for container-to-container communication?", "docker", "network", "developer", "command"),
-    EvalQuestion("What is the difference between CMD and ENTRYPOINT in a Dockerfile?", "docker", "files", "developer", "conceptual"),
+    EvalQuestion("build the docker image from the Dockerfile in this directory", "docker", "files", "developer", "command"),
+    EvalQuestion("run the postgres container with /var/lib/postgres mounted from the host", "docker", "files", "developer", "command"),
+    EvalQuestion("show running containers and their CPU/memory usage", "docker", "process", "developer", "command"),
+    EvalQuestion("get a shell inside the running api container", "docker", "process", "developer", "command"),
+    EvalQuestion("tail the logs from the worker container", "docker", "process", "developer", "command"),
+    EvalQuestion("clean up all stopped containers and dangling images", "docker", "process", "developer", "command"),
+    EvalQuestion("create a docker network for the app and db containers to talk", "docker", "network", "developer", "command"),
+    EvalQuestion("what's the difference between CMD and ENTRYPOINT in a Dockerfile", "docker", "files", "developer", "conceptual"),
 
     # --- Debugging & Profiling (8) ---
-    EvalQuestion("How do I use strace to trace system calls of a command?", "debugging", "process", "developer", "command"),
-    EvalQuestion("How do I attach gdb to a running process for debugging?", "debugging", "process", "developer", "command"),
-    EvalQuestion("How do I check for memory leaks using valgrind?", "debugging", "process", "developer", "command"),
-    EvalQuestion("How do I use perf to profile CPU performance of a program?", "debugging", "process", "developer", "command"),
-    EvalQuestion("How do I generate and analyze a core dump from a crashed program?", "debugging", "process", "developer", "command"),
-    EvalQuestion("How do I use lsof to find which process has a file open?", "debugging", "process", "developer", "command"),
-    EvalQuestion("How do I inspect the memory map of a process using /proc?", "debugging", "kernel", "developer", "command"),
-    EvalQuestion("What is the difference between static and dynamic analysis tools?", "debugging", "kernel", "developer", "conceptual"),
+    EvalQuestion("strace the curl command to see what syscalls it makes", "debugging", "process", "developer", "command"),
+    EvalQuestion("attach gdb to the running myapp process PID 4521", "debugging", "process", "developer", "command"),
+    EvalQuestion("run valgrind on my C program to check for memory leaks", "debugging", "process", "developer", "command"),
+    EvalQuestion("profile CPU usage of the nginx master process with perf", "debugging", "process", "developer", "command"),
+    EvalQuestion("generate a core dump from the crashed myapp binary and open it in gdb", "debugging", "process", "developer", "command"),
+    EvalQuestion("find which process has /var/log/app.log open", "debugging", "process", "developer", "command"),
+    EvalQuestion("show the memory map of PID 4521 from /proc", "debugging", "kernel", "developer", "command"),
+    EvalQuestion("what's the difference between static and dynamic analysis", "debugging", "kernel", "developer", "conceptual"),
 
     # --- Build Systems & Compilation (6) ---
-    EvalQuestion("How do I compile a C program with gcc and enable all warnings?", "build", "files", "developer", "command"),
-    EvalQuestion("How do I create a Makefile with a clean target and dependency tracking?", "build", "files", "developer", "command"),
-    EvalQuestion("How do I compile a shared library (.so) from C source files?", "build", "files", "developer", "command"),
-    EvalQuestion("How do I use pkg-config to find compiler flags for a library?", "build", "files", "developer", "command"),
-    EvalQuestion("How do I cross-compile a binary for ARM on an x86 machine?", "build", "files", "developer", "command"),
-    EvalQuestion("What is the difference between static and dynamic linking?", "build", "kernel", "developer", "conceptual"),
+    EvalQuestion("compile main.c with gcc, enable all warnings and debug symbols", "build", "files", "developer", "command"),
+    EvalQuestion("write a Makefile with build, clean, and install targets", "build", "files", "developer", "command"),
+    EvalQuestion("compile libutils.c into a shared library .so", "build", "files", "developer", "command"),
+    EvalQuestion("use pkg-config to get the compiler flags for libssl", "build", "files", "developer", "command"),
+    EvalQuestion("cross-compile hello.c for ARM64", "build", "files", "developer", "command"),
+    EvalQuestion("what's the difference between static and dynamic linking", "build", "kernel", "developer", "conceptual"),
 
     # --- Systemd Advanced (5) ---
-    EvalQuestion("How do I create a systemd timer that runs a script every hour?", "systemd", "process", "developer", "command"),
-    EvalQuestion("How do I write a custom systemd service unit file?", "systemd", "process", "developer", "command"),
-    EvalQuestion("How do I view systemd journal logs for a specific service since yesterday?", "systemd", "process", "developer", "command"),
-    EvalQuestion("How do I set up systemd service dependencies so service B starts after service A?", "systemd", "process", "developer", "command"),
-    EvalQuestion("What is systemd socket activation and when would you use it?", "systemd", "process", "developer", "conceptual"),
+    EvalQuestion("create a systemd timer that runs the cleanup script every hour", "systemd", "process", "developer", "command"),
+    EvalQuestion("write a systemd service unit for our node app", "systemd", "process", "developer", "command"),
+    EvalQuestion("show journald logs for the api service since yesterday", "systemd", "process", "developer", "command"),
+    EvalQuestion("make the worker service start only after postgres is up", "systemd", "process", "developer", "command"),
+    EvalQuestion("what is systemd socket activation and when would you use it", "systemd", "process", "developer", "conceptual"),
 
     # --- Security & Hardening (5) ---
-    EvalQuestion("How do I configure UFW to allow only SSH and HTTP traffic?", "security", "network", "developer", "command"),
-    EvalQuestion("How do I harden SSH by disabling root login and password auth?", "security", "network", "developer", "command"),
-    EvalQuestion("How do I use fail2ban to protect against brute-force SSH attacks?", "security", "network", "developer", "command"),
-    EvalQuestion("How do I check AppArmor profiles and their enforcement status?", "security", "kernel", "developer", "command"),
-    EvalQuestion("How do I audit file access using auditd and ausearch?", "security", "kernel", "developer", "command"),
+    EvalQuestion("configure UFW to allow only SSH and HTTP", "security", "network", "developer", "command"),
+    EvalQuestion("harden SSH: disable root login and password auth", "security", "network", "developer", "command"),
+    EvalQuestion("set up fail2ban to block brute-force SSH attempts", "security", "network", "developer", "command"),
+    EvalQuestion("check AppArmor profiles and which ones are enforcing", "security", "kernel", "developer", "command"),
+    EvalQuestion("set up auditd to track access to /etc/shadow", "security", "kernel", "developer", "command"),
 
     # --- Database CLI (5) ---
-    EvalQuestion("How do I connect to a PostgreSQL database and list all tables?", "database", "files", "developer", "command"),
-    EvalQuestion("How do I dump a MySQL database to a SQL file for backup?", "database", "files", "developer", "command"),
-    EvalQuestion("How do I create a SQLite database and run a query from the command line?", "database", "files", "developer", "command"),
-    EvalQuestion("How do I restore a PostgreSQL database from a pg_dump backup?", "database", "files", "developer", "command"),
-    EvalQuestion("How do I check the size of all databases in PostgreSQL?", "database", "files", "developer", "command"),
+    EvalQuestion("connect to the local postgres db and list all tables", "database", "files", "developer", "command"),
+    EvalQuestion("dump the production mysql database, compressed, before the migration", "database", "files", "developer", "command"),
+    EvalQuestion("create a sqlite db and run a quick query from the command line", "database", "files", "developer", "command"),
+    EvalQuestion("restore the postgres backup from last night's pg_dump", "database", "files", "developer", "command"),
+    EvalQuestion("show the size of each database in postgres", "database", "files", "developer", "command"),
 
     # --- CI/CD & DevOps (5) ---
-    EvalQuestion("How do I use ssh-agent to avoid typing my SSH passphrase repeatedly?", "devops", "network", "developer", "command"),
-    EvalQuestion("How do I set up log rotation with logrotate for a custom application?", "devops", "files", "developer", "command"),
-    EvalQuestion("How do I create a cron job that logs its output with timestamps?", "devops", "process", "developer", "command"),
-    EvalQuestion("How do I use envsubst to substitute environment variables in a config template?", "devops", "files", "developer", "command"),
-    EvalQuestion("How do I write a health check script that curls an endpoint and alerts on failure?", "devops", "files", "developer", "command"),
+    EvalQuestion("set up ssh-agent so I stop getting asked for my passphrase", "devops", "network", "developer", "command"),
+    EvalQuestion("configure logrotate for /var/log/myapp/*.log, keep 7 days", "devops", "files", "developer", "command"),
+    EvalQuestion("set up a cron job that logs output with timestamps to /var/log/cron.log", "devops", "process", "developer", "command"),
+    EvalQuestion("use envsubst to fill in env vars in the nginx.conf.template", "devops", "files", "developer", "command"),
+    EvalQuestion("write a health check that curls /healthz and alerts if it fails", "devops", "files", "developer", "command"),
 ]
 
 # ═══════════════════════════════════════════════════════════════════════════
-# NEW: HARNESS STRESS TESTS (~10)
+# HARNESS STRESS TESTS (~26)
 # Designed to break routing, parser, or classification.
 # ═══════════════════════════════════════════════════════════════════════════
 
 _HARNESS_STRESS: list[EvalQuestion] = [
     # Cross-domain: keyword tie-breakers (process + network keywords)
-    EvalQuestion("Which process is using the most network bandwidth?", "harness", "process", "advanced", "routing"),
-    EvalQuestion("Show me network connections grouped by process", "harness", "network", "advanced", "routing"),
+    EvalQuestion("which process is hogging all the bandwidth", "harness", "process", "advanced", "routing"),
+    EvalQuestion("show network connections grouped by process", "harness", "network", "advanced", "routing"),
 
     # Cross-domain: file + process overlap
-    EvalQuestion("Find all open files for a specific process", "harness", "process", "advanced", "routing"),
-    EvalQuestion("Which process is writing to /var/log/syslog?", "harness", "process", "advanced", "routing"),
+    EvalQuestion("list all open files for PID 1234", "harness", "process", "advanced", "routing"),
+    EvalQuestion("which process keeps writing to /var/log/syslog", "harness", "process", "advanced", "routing"),
 
     # Zero-keyword: force model fallback (no strong domain signals)
-    EvalQuestion("How do I make my system faster?", "harness", "process", "basic", "adversarial"),
-    EvalQuestion("Something is wrong with my computer", "harness", "process", "basic", "adversarial"),
+    EvalQuestion("make this system faster", "harness", "process", "basic", "adversarial"),
+    EvalQuestion("something is wrong, things are slow", "harness", "process", "basic", "adversarial"),
 
     # Format test: should give explanation, NOT a command
-    EvalQuestion("What are inodes?", "harness", "kernel", "intermediate", "format"),
-    EvalQuestion("Explain how pipes work in Unix", "harness", "kernel", "intermediate", "format"),
+    EvalQuestion("what are inodes", "harness", "kernel", "intermediate", "format"),
+    EvalQuestion("explain how pipes work in Unix", "harness", "kernel", "intermediate", "format"),
 
     # Ambiguous: could be command or conceptual
-    EvalQuestion("Tell me about Linux permissions", "harness", "files", "basic", "format"),
-    EvalQuestion("How does cron work?", "harness", "process", "basic", "format"),
+    EvalQuestion("tell me about Linux permissions", "harness", "files", "basic", "format"),
+    EvalQuestion("how does cron work", "harness", "process", "basic", "format"),
 
     # Out-of-domain: no specialist covers this well
-    EvalQuestion("How do I set up a Python virtual environment?", "harness", "packages", "intermediate", "adversarial"),
-    EvalQuestion("How do I configure nginx as a reverse proxy?", "harness", "network", "advanced", "adversarial"),
+    EvalQuestion("set up a python venv for this flask project", "harness", "packages", "intermediate", "adversarial"),
+    EvalQuestion("configure nginx as a reverse proxy for port 3000", "harness", "network", "advanced", "adversarial"),
+
+    # --- NEW: Multi-step / compound requests ---
+    EvalQuestion("deploy the new config and then check if the service is healthy", "harness", "process", "advanced", "routing"),
+    EvalQuestion("back up the database, then rotate the old backups", "harness", "files", "advanced", "routing"),
+
+    # --- NEW: Typos, slang, shorthand ---
+    EvalQuestion("whats eating all my ram", "harness", "process", "basic", "adversarial"),
+    EvalQuestion("nuke all the old docker containers", "harness", "process", "intermediate", "adversarial"),
+    EvalQuestion("yeet the tmp files", "harness", "files", "basic", "adversarial"),
+
+    # --- NEW: Complaints / vague problems ---
+    EvalQuestion("nginx is down again", "harness", "process", "basic", "adversarial"),
+    EvalQuestion("the app is throwing 502s", "harness", "network", "intermediate", "adversarial"),
+    EvalQuestion("disk is almost full", "harness", "files", "basic", "adversarial"),
+
+    # --- NEW: Long compound queries ---
+    EvalQuestion("find all core dumps older than a week, show their sizes, and delete them", "harness", "files", "advanced", "routing"),
+    EvalQuestion("check which services failed to start, show their logs, and restart them", "harness", "process", "advanced", "routing"),
+
+    # --- NEW: Mixed domain context ---
+    EvalQuestion("is the postgres port exposed to the internet", "harness", "network", "intermediate", "routing"),
+    EvalQuestion("the container can't resolve DNS, check the network config", "harness", "network", "advanced", "routing"),
+
+    # --- NEW: Requests with irrelevant filler ---
+    EvalQuestion("hey so like I was wondering if you could maybe show me what ports are open", "harness", "network", "basic", "adversarial"),
+    EvalQuestion("urgent: production is down and we need to find the process that crashed", "harness", "process", "intermediate", "adversarial"),
 ]
 
 # ═══════════════════════════════════════════════════════════════════════════

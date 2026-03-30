@@ -59,6 +59,12 @@ class InferenceEngine:
         self._top_k = gen_cfg.get("top_k", 20)
         self._max_tokens = gen_cfg.get("max_tokens", 1024)
         self._stop_tokens = gen_cfg.get("stop_tokens", ["<|im_end|>", "<|endoftext|>"])
+        self._last_completion_tokens = 0
+
+    @property
+    def last_completion_tokens(self) -> int:
+        """Token count from the most recent create_completion() call."""
+        return self._last_completion_tokens
 
     def infer(self, system_prompt: str, user_message: str, max_tokens: int | None = None) -> str:
         """Run synchronous inference. Returns cleaned response text."""
@@ -73,6 +79,7 @@ class InferenceEngine:
             stop=self._stop_tokens,
         )
 
+        self._last_completion_tokens = result.get("usage", {}).get("completion_tokens", 0)
         raw = result["choices"][0]["text"]
         return self._strip_thinking(raw)
 
