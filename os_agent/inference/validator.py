@@ -248,6 +248,14 @@ def validate(bash_command: str) -> dict:
             }
 
         # ── Rule 4: arg type mismatch ────────────────────────────────────
+        # Shell command substitutions ($(...) or `...`) are runtime-evaluated —
+        # we can't know their type statically, so skip type checking for them.
+        # e.g. perf -p $(pgrep nginx) is valid even though -p expects a number.
+        if arg_val and (arg_val.startswith("$(") or arg_val.startswith("`")):
+            seen_flags.append(flag)
+            i += 1
+            continue
+
         if arg_val and expects and expects not in ("command", "size_spec", "permission_mode", "enum"):
             got_type = infer_arg_type(arg_val)
             if got_type != expects and not (expects == "string" and got_type in ("string", "number", "email")):
