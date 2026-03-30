@@ -1,0 +1,746 @@
+{
+  "total_queries": 50,
+  "windows": {
+    "early": {
+      "range": "1\u201310",
+      "count": 10,
+      "avg_score": 3.0,
+      "avg_latency_ms": 592.0,
+      "avg_ctx_tokens": 58.4,
+      "blocked": 0,
+      "no_command": 0,
+      "scores": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    "mid": {
+      "range": "11\u201325",
+      "count": 15,
+      "avg_score": 2.93,
+      "avg_latency_ms": 637.0,
+      "avg_ctx_tokens": 74.5,
+      "blocked": 0,
+      "no_command": 0,
+      "scores": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    "late": {
+      "range": "26\u201350",
+      "count": 25,
+      "avg_score": 2.72,
+      "avg_latency_ms": 667.0,
+      "avg_ctx_tokens": 78.0,
+      "blocked": 1,
+      "no_command": 1,
+      "scores": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        2,
+        3,
+        3,
+        3,
+        2,
+        2,
+        2
+      ]
+    }
+  },
+  "results": [
+    {
+      "query": "what files are taking the most space in this folder",
+      "domain": "files",
+      "command": "find . -type f -exec du -h {} + | sort -rh | head -10",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 619.6,
+      "tokens": 30,
+      "session_turns": 1,
+      "ctx_tokens_injected": 0
+    },
+    {
+      "query": "show me log files changed in the last 24 hours under /var/log",
+      "domain": "files",
+      "command": "find /var/log -type f -mtime -1 -exec ls -lh {} \\;",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 566.3,
+      "tokens": 28,
+      "session_turns": 2,
+      "ctx_tokens_injected": 19
+    },
+    {
+      "query": "grep for ERROR in all .log files under /var recursively",
+      "domain": "files",
+      "command": "find /var -name '*.log' -type f -exec grep 'ERROR' {} +",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 578.9,
+      "tokens": 28,
+      "session_turns": 3,
+      "ctx_tokens_injected": 38
+    },
+    {
+      "query": "when should I use 755 vs 644 permissions",
+      "domain": "files",
+      "command": "stat /home/somesh/projects",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 932.4,
+      "tokens": 52,
+      "session_turns": 4,
+      "ctx_tokens_injected": 55
+    },
+    {
+      "query": "change owner of /opt/app and everything inside it to deploy user",
+      "domain": "files",
+      "command": "chown -R deploy:deploy /opt/app",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 501.6,
+      "tokens": 19,
+      "session_turns": 5,
+      "ctx_tokens_injected": 70
+    },
+    {
+      "query": "create a symlink from /etc/nginx/sites-enabled/myapp to sites-available/myapp",
+      "domain": "files",
+      "command": "ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/myapp",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 582.2,
+      "tokens": 26,
+      "session_turns": 6,
+      "ctx_tokens_injected": 87
+    },
+    {
+      "query": "list all open TCP ports on this box",
+      "domain": "network",
+      "command": "sudo ss -tlnp",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 446.7,
+      "tokens": 15,
+      "session_turns": 7,
+      "ctx_tokens_injected": 84
+    },
+    {
+      "query": "generate an ed25519 SSH key for deploy@prod",
+      "domain": "network",
+      "command": "ssh-keygen -t ed25519 -C deploy@prod",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 578.6,
+      "tokens": 25,
+      "session_turns": 8,
+      "ctx_tokens_injected": 80
+    },
+    {
+      "query": "scp the config.tar.gz to 10.0.1.5:/tmp/",
+      "domain": "network",
+      "command": "scp config.tar.gz somesh@10.0.1.5:/tmp/",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 589.9,
+      "tokens": 27,
+      "session_turns": 9,
+      "ctx_tokens_injected": 77
+    },
+    {
+      "query": "what's my IP",
+      "domain": "network",
+      "command": "hostname -I",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 520.1,
+      "tokens": 22,
+      "session_turns": 10,
+      "ctx_tokens_injected": 74
+    },
+    {
+      "query": "check if port 443 is open on 10.0.1.5 without telnet",
+      "domain": "network",
+      "command": "ss -tlnp | grep :443",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 896.3,
+      "tokens": 51,
+      "session_turns": 11,
+      "ctx_tokens_injected": 67
+    },
+    {
+      "query": "block incoming traffic on port 22 with iptables",
+      "domain": "network",
+      "command": "sudo iptables -A INPUT -p tcp --dport 22 -j DROP",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 586.5,
+      "tokens": 27,
+      "session_turns": 12,
+      "ctx_tokens_injected": 70
+    },
+    {
+      "query": "rsync /var/www/ to backup@10.0.1.5:/backups/www/",
+      "domain": "network",
+      "command": "rsync -avz /var/www/ backup@10.0.1.5:/backups/www/",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 680.5,
+      "tokens": 33,
+      "session_turns": 13,
+      "ctx_tokens_injected": 70
+    },
+    {
+      "query": "show me disk usage by directory",
+      "domain": "process",
+      "command": "du -sh /*",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 640.1,
+      "tokens": 30,
+      "session_turns": 14,
+      "ctx_tokens_injected": 67
+    },
+    {
+      "query": "kill the node process that's stuck",
+      "domain": "process",
+      "command": "kill $(lsof -t -i:8080)",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 934.7,
+      "tokens": 52,
+      "session_turns": 15,
+      "ctx_tokens_injected": 68
+    },
+    {
+      "query": "which process is using the most memory right now",
+      "domain": "process",
+      "command": "ps aux --sort=-%mem | head -5",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 711.3,
+      "tokens": 35,
+      "session_turns": 16,
+      "ctx_tokens_injected": 71
+    },
+    {
+      "query": "run this script in the background so it survives SSH logout",
+      "domain": "process",
+      "command": "nohup ./script.sh &",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 452.3,
+      "tokens": 16,
+      "session_turns": 17,
+      "ctx_tokens_injected": 70
+    },
+    {
+      "query": "set up a cron that runs backup.sh every night at midnight",
+      "domain": "process",
+      "command": "echo '0 0 * * * /home/somesh/Desktop/OS_AI_model/backup.sh' | crontab -u somesh -",
+      "blocked": false,
+      "validator": {
+        "ok": true,
+        "warn": "echo: not in help_db, skipping flag validation"
+      },
+      "elapsed_ms": 759.0,
+      "tokens": 40,
+      "session_turns": 18,
+      "ctx_tokens_injected": 73
+    },
+    {
+      "query": "show me CPU and memory usage in real time",
+      "domain": "process",
+      "command": "top -bn1 -H | head -20",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 731.7,
+      "tokens": 38,
+      "session_turns": 19,
+      "ctx_tokens_injected": 80
+    },
+    {
+      "query": "add user jenkins to the sudo group",
+      "domain": "process",
+      "command": "sudo usermod -aG sudo jenkins",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 697.1,
+      "tokens": 34,
+      "session_turns": 20,
+      "ctx_tokens_injected": 83
+    },
+    {
+      "query": "create a new user deploy with a home directory",
+      "domain": "process",
+      "command": "useradd -m deploy",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 428.4,
+      "tokens": 14,
+      "session_turns": 20,
+      "ctx_tokens_injected": 84
+    },
+    {
+      "query": "lock the intern account without deleting it",
+      "domain": "process",
+      "command": "passwd -l intern",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 631.5,
+      "tokens": 29,
+      "session_turns": 20,
+      "ctx_tokens_injected": 84
+    },
+    {
+      "query": "what groups does the deploy user belong to",
+      "domain": "process",
+      "command": "groups deploy",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 553.7,
+      "tokens": 24,
+      "session_turns": 20,
+      "ctx_tokens_injected": 80
+    },
+    {
+      "query": "install this .deb package I downloaded",
+      "domain": "packages",
+      "command": "sudo dpkg -i ./package.deb",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 452.3,
+      "tokens": 17,
+      "session_turns": 20,
+      "ctx_tokens_injected": 77
+    },
+    {
+      "query": "restart the nginx service",
+      "domain": "process",
+      "command": "sudo systemctl restart nginx",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 406.1,
+      "tokens": 13,
+      "session_turns": 20,
+      "ctx_tokens_injected": 74
+    },
+    {
+      "query": "check if postgres is set to start on boot",
+      "domain": "process",
+      "command": "sudo systemctl show postgresql | grep Enable",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 459.9,
+      "tokens": 17,
+      "session_turns": 20,
+      "ctx_tokens_injected": 71
+    },
+    {
+      "query": "which package owns /usr/bin/curl",
+      "domain": "packages",
+      "command": "sudo dpkg -S /usr/bin/curl",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 648.6,
+      "tokens": 32,
+      "session_turns": 20,
+      "ctx_tokens_injected": 71
+    },
+    {
+      "query": "grab the 3rd column from this space-separated file with awk",
+      "domain": "files",
+      "command": "awk '{print $3}' /home/somesh/Desktop/OS_AI_model/finetuning/output.log",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 635.1,
+      "tokens": 31,
+      "session_turns": 20,
+      "ctx_tokens_injected": 68
+    },
+    {
+      "query": "replace all occurrences of localhost with 0.0.0.0 in config.yaml",
+      "domain": "files",
+      "command": "sed -i 's/localhost/0.0.0.0/g' config.yaml",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 602.3,
+      "tokens": 28,
+      "session_turns": 20,
+      "ctx_tokens_injected": 70
+    },
+    {
+      "query": "count lines, words, and characters in access.log",
+      "domain": "files",
+      "command": "wc -l -w -c access.log",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 700.2,
+      "tokens": 34,
+      "session_turns": 20,
+      "ctx_tokens_injected": 73
+    },
+    {
+      "query": "sort this file and remove duplicate lines",
+      "domain": "files",
+      "command": "sort -u file.txt",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 428.0,
+      "tokens": 14,
+      "session_turns": 20,
+      "ctx_tokens_injected": 76
+    },
+    {
+      "query": "mount the USB drive at /dev/sdb1 to /mnt/usb",
+      "domain": "files",
+      "command": "sudo mount /dev/sdb1 /mnt/usb",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 723.7,
+      "tokens": 37,
+      "session_turns": 20,
+      "ctx_tokens_injected": 74
+    },
+    {
+      "query": "show free disk space on all mounted filesystems",
+      "domain": "files",
+      "command": "df -h",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 611.9,
+      "tokens": 28,
+      "session_turns": 20,
+      "ctx_tokens_injected": 78
+    },
+    {
+      "query": "tar and gzip the /opt/app directory for backup",
+      "domain": "files",
+      "command": "tar -czf /opt/app_backup.tar.gz -C /opt app",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 558.1,
+      "tokens": 24,
+      "session_turns": 20,
+      "ctx_tokens_injected": 76
+    },
+    {
+      "query": "find and delete log files older than 30 days under /var/log",
+      "domain": "files",
+      "command": "find /var/log -type f -mtime +30 -delete",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 795.4,
+      "tokens": 42,
+      "session_turns": 20,
+      "ctx_tokens_injected": 75
+    },
+    {
+      "query": "what is a kernel module and how do I load one",
+      "domain": "kernel",
+      "command": "sudo modprobe nvidia",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 650.5,
+      "tokens": 30,
+      "session_turns": 20,
+      "ctx_tokens_injected": 79
+    },
+    {
+      "query": "what's the difference between a process and a thread",
+      "domain": "process",
+      "command": "ps aux | head -20",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 783.2,
+      "tokens": 41,
+      "session_turns": 20,
+      "ctx_tokens_injected": 83
+    },
+    {
+      "query": "how does virtual memory paging work in Linux",
+      "domain": "kernel",
+      "command": "cat /proc/meminfo | grep -E 'MemTotal|MemFree|MemAvailable|Buffers|Cached|SwapTotal|SwapFree'",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 1056.8,
+      "tokens": 62,
+      "session_turns": 20,
+      "ctx_tokens_injected": 84
+    },
+    {
+      "query": "what is /proc used for",
+      "domain": "kernel",
+      "command": "ls -la /proc",
+      "blocked": false,
+      "validator": {
+        "ok": true,
+        "warn": "ls: not in help_db, skipping flag validation"
+      },
+      "elapsed_ms": 937.4,
+      "tokens": 53,
+      "session_turns": 20,
+      "ctx_tokens_injected": 84
+    },
+    {
+      "query": "show me the kernel version and build info",
+      "domain": "kernel",
+      "command": "uname -r",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 600.1,
+      "tokens": 27,
+      "session_turns": 20,
+      "ctx_tokens_injected": 81
+    },
+    {
+      "query": "write a bash snippet that checks if /tmp/lock.pid exists before proceeding",
+      "domain": "process",
+      "command": "if [[ -f /tmp/lock.pid ]]; then\n    echo \"Another instance is running\"\n    exit 1\nfi",
+      "blocked": false,
+      "validator": {
+        "ok": true,
+        "warn": "if: not in help_db, skipping flag validation"
+      },
+      "elapsed_ms": 722.4,
+      "tokens": 36,
+      "session_turns": 20,
+      "ctx_tokens_injected": 78
+    },
+    {
+      "query": "loop over all .log files in /var/log and print their sizes",
+      "domain": "files",
+      "command": "find /var/log -name '*.log' -exec du -h {} + | sort -rh",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 630.7,
+      "tokens": 29,
+      "session_turns": 20,
+      "ctx_tokens_injected": 77
+    },
+    {
+      "query": "capture the output of date into a variable in bash",
+      "domain": "files",
+      "command": "current_date=$(date)",
+      "blocked": false,
+      "validator": {
+        "ok": true,
+        "warn": "current_date=$(date): not in help_db, skipping flag validation"
+      },
+      "elapsed_ms": 422.1,
+      "tokens": 14,
+      "session_turns": 20,
+      "ctx_tokens_injected": 79
+    },
+    {
+      "query": "validate that a bash script got exactly 2 arguments",
+      "domain": "files",
+      "command": "if [ \"$#\" -ne 2 ]; then echo \"Usage: $0 <arg1> <arg2>\"; exit 1; fi",
+      "blocked": false,
+      "validator": {
+        "ok": true,
+        "warn": "if: not in help_db, skipping flag validation"
+      },
+      "elapsed_ms": 738.0,
+      "tokens": 38,
+      "session_turns": 20,
+      "ctx_tokens_injected": 81
+    },
+    {
+      "query": "find all setuid binaries on the system",
+      "domain": "files",
+      "command": "find / -perm /4000 -type f",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 533.0,
+      "tokens": 21,
+      "session_turns": 20,
+      "ctx_tokens_injected": 85
+    },
+    {
+      "query": "find duplicate files by content in /opt/uploads and /var/data",
+      "domain": "files",
+      "command": "find /opt/uploads /var/data -type f -exec md5sum {} \\; | sort | uniq -d",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 674.0,
+      "tokens": 33,
+      "session_turns": 20,
+      "ctx_tokens_injected": 84
+    },
+    {
+      "query": "recursively change permissions on directories only, leave files alone",
+      "domain": "files",
+      "command": "find /path/to/dir -type d -exec chmod 755 {} +",
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 585.2,
+      "tokens": 26,
+      "session_turns": 20,
+      "ctx_tokens_injected": 83
+    },
+    {
+      "query": "watch /var/spool/incoming for new files being created",
+      "domain": "files",
+      "command": "inotifywait -m -e create /var/spool/incoming",
+      "blocked": false,
+      "validator": {
+        "ok": true,
+        "warn": "inotifywait: not in help_db, skipping flag validation"
+      },
+      "elapsed_ms": 737.4,
+      "tokens": 38,
+      "session_turns": 20,
+      "ctx_tokens_injected": 80
+    },
+    {
+      "query": "what's the difference between hard links and symlinks",
+      "domain": "files",
+      "command": null,
+      "blocked": false,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 924.0,
+      "tokens": 52,
+      "session_turns": 20,
+      "ctx_tokens_injected": 77
+    },
+    {
+      "query": "find all files owned by the old admin user across the system",
+      "domain": "files",
+      "command": "find / -noleaf -user oldadmin -print",
+      "blocked": true,
+      "validator": {
+        "ok": true
+      },
+      "elapsed_ms": 520.2,
+      "tokens": 21,
+      "session_turns": 20,
+      "ctx_tokens_injected": 84
+    }
+  ]
+}
