@@ -57,6 +57,7 @@ class InferenceEngine:
         self._temperature = gen_cfg.get("temperature", 0.6)
         self._top_p = gen_cfg.get("top_p", 0.95)
         self._top_k = gen_cfg.get("top_k", 20)
+        self._repeat_penalty = gen_cfg.get("repeat_penalty", 1.0)
         self._max_tokens = gen_cfg.get("max_tokens", 1024)
         self._stop_tokens = gen_cfg.get("stop_tokens", ["<|im_end|>", "<|endoftext|>"])
         self._last_completion_tokens = 0
@@ -75,6 +76,7 @@ class InferenceEngine:
             temperature=self._temperature,
             top_p=self._top_p,
             top_k=self._top_k,
+            repeat_penalty=self._repeat_penalty,
             max_tokens=max_tokens or self._max_tokens,
             stop=self._stop_tokens,
         )
@@ -98,6 +100,7 @@ class InferenceEngine:
             temperature=self._temperature,
             top_p=self._top_p,
             top_k=self._top_k,
+            repeat_penalty=self._repeat_penalty,
             max_tokens=max_tokens or self._max_tokens,
             stop=self._stop_tokens,
             stream=True,

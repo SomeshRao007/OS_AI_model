@@ -265,7 +265,7 @@ class NeuroshShell:
 
             # Desktop notification for commands that need confirmation
             if risk != RiskLevel.SAFE or not in_domain or vague:
-                self._notifier.warn_dangerous_command(command, risk.value, domain)
+                self._notifier.warn_dangerous_command(command, risk, domain)
 
             if vague:
                 # Vague query — show model's interpretation, force confirmation

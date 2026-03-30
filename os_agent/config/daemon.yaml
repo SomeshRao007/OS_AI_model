@@ -6,9 +6,10 @@ model:
   n_gpu_layers: -1      # all layers on GPU
 
 generation:
-  temperature: 0.5      # down from 0.6 — eliminates hallucinated flags (nohup -d, useradd -m -m)
+  temperature: 0.3      # down from 0.5 — more deterministic output, same accuracy (confirmed by sweep)
   top_p: 0.98           # up from 0.95 — slightly wider nucleus for conceptual answers
-  top_k: 15             # down from 20 — tighter sampling for command accuracy
+  top_k: 15             # tighter sampling for command accuracy
+  repeat_penalty: 1.1   # penalise repeated tokens — prevents duplicate flags (useradd -m -m, find -name -name)
   max_tokens: 1024
   stop_tokens:
     - "<|im_end|>"
