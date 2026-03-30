@@ -1,0 +1,707 @@
+{
+  "config": {
+    "queries": 100,
+    "sample_every": 10,
+    "seed": 42,
+    "vram_leak_threshold": 10.0,
+    "ram_leak_threshold": 20.0
+  },
+  "baseline_vram_mb": 764,
+  "baseline_ram_mb": 139,
+  "model_load_vram_mb": 3285,
+  "model_load_ram_mb": 719,
+  "memory_samples": [
+    {
+      "vram_mb": 4095,
+      "ram_mb": 1083,
+      "ts": 1774864381.831492,
+      "query_index": 10,
+      "vram_delta": 46,
+      "ram_delta": 225
+    },
+    {
+      "vram_mb": 4069,
+      "ram_mb": 1092,
+      "ts": 1774864395.845397,
+      "query_index": 20,
+      "vram_delta": 20,
+      "ram_delta": 234
+    },
+    {
+      "vram_mb": 4091,
+      "ram_mb": 1126,
+      "ts": 1774864408.006312,
+      "query_index": 30,
+      "vram_delta": 42,
+      "ram_delta": 268
+    },
+    {
+      "vram_mb": 4086,
+      "ram_mb": 1169,
+      "ts": 1774864415.2577646,
+      "query_index": 40,
+      "vram_delta": 37,
+      "ram_delta": 311
+    },
+    {
+      "vram_mb": 4080,
+      "ram_mb": 1184,
+      "ts": 1774864429.6251388,
+      "query_index": 50,
+      "vram_delta": 31,
+      "ram_delta": 326
+    },
+    {
+      "vram_mb": 4076,
+      "ram_mb": 1184,
+      "ts": 1774864436.9439063,
+      "query_index": 60,
+      "vram_delta": 27,
+      "ram_delta": 326
+    },
+    {
+      "vram_mb": 4051,
+      "ram_mb": 1184,
+      "ts": 1774864451.8251166,
+      "query_index": 70,
+      "vram_delta": 2,
+      "ram_delta": 326
+    },
+    {
+      "vram_mb": 4056,
+      "ram_mb": 1184,
+      "ts": 1774864462.783545,
+      "query_index": 80,
+      "vram_delta": 7,
+      "ram_delta": 326
+    },
+    {
+      "vram_mb": 4049,
+      "ram_mb": 1184,
+      "ts": 1774864491.2778971,
+      "query_index": 90,
+      "vram_delta": 0,
+      "ram_delta": 326
+    },
+    {
+      "vram_mb": 4048,
+      "ram_mb": 1195,
+      "ts": 1774864501.2577968,
+      "query_index": 100,
+      "vram_delta": -1,
+      "ram_delta": 337
+    }
+  ],
+  "vram_slope_mb_per_sample": -5.133,
+  "ram_slope_mb_per_sample": 12.042,
+  "vram_total_drift_mb": -47,
+  "ram_total_drift_mb": 112,
+  "avg_latency_ms": 837.0,
+  "avg_warm_latency_ms": 837.7,
+  "max_latency_ms": 15560.4,
+  "vram_leak": false,
+  "ram_leak": false,
+  "pass": true,
+  "query_results": [
+    {
+      "domain": "process",
+      "elapsed_ms": 771.7,
+      "tokens": 44,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 550.6,
+      "tokens": 28,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 383.2,
+      "tokens": 15,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 730.0,
+      "tokens": 41,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 794.2,
+      "tokens": 45,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 608.5,
+      "tokens": 32,
+      "blocked": false
+    },
+    {
+      "domain": "kernel",
+      "elapsed_ms": 686.8,
+      "tokens": 38,
+      "blocked": false
+    },
+    {
+      "domain": "packages",
+      "elapsed_ms": 572.7,
+      "tokens": 30,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 888.5,
+      "tokens": 52,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 330.7,
+      "tokens": 11,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 1189.1,
+      "tokens": 73,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 844.0,
+      "tokens": 47,
+      "blocked": true
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 550.3,
+      "tokens": 27,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 609.1,
+      "tokens": 31,
+      "blocked": false
+    },
+    {
+      "domain": "packages",
+      "elapsed_ms": 530.4,
+      "tokens": 26,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 1197.6,
+      "tokens": 77,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 658.1,
+      "tokens": 35,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 799.1,
+      "tokens": 47,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 553.1,
+      "tokens": 27,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 397.9,
+      "tokens": 15,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 713.1,
+      "tokens": 38,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 562.1,
+      "tokens": 29,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 378.4,
+      "tokens": 15,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 529.0,
+      "tokens": 25,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 462.2,
+      "tokens": 20,
+      "blocked": false
+    },
+    {
+      "domain": "packages",
+      "elapsed_ms": 482.6,
+      "tokens": 23,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 514.1,
+      "tokens": 23,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 404.3,
+      "tokens": 15,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 475.4,
+      "tokens": 20,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 1476.8,
+      "tokens": 96,
+      "blocked": false
+    },
+    {
+      "domain": "kernel",
+      "elapsed_ms": 722.5,
+      "tokens": 38,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 1200.9,
+      "tokens": 73,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 396.9,
+      "tokens": 15,
+      "blocked": false
+    },
+    {
+      "domain": "kernel",
+      "elapsed_ms": 489.7,
+      "tokens": 21,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 701.6,
+      "tokens": 39,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 555.8,
+      "tokens": 28,
+      "blocked": false
+    },
+    {
+      "domain": "packages",
+      "elapsed_ms": 606.4,
+      "tokens": 32,
+      "blocked": false
+    },
+    {
+      "domain": "packages",
+      "elapsed_ms": 536.0,
+      "tokens": 27,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 817.5,
+      "tokens": 47,
+      "blocked": true
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 360.5,
+      "tokens": 13,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 971.7,
+      "tokens": 58,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 726.4,
+      "tokens": 41,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 706.5,
+      "tokens": 39,
+      "blocked": false
+    },
+    {
+      "domain": "packages",
+      "elapsed_ms": 740.8,
+      "tokens": 42,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 545.4,
+      "tokens": 27,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 839.7,
+      "tokens": 49,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 1051.5,
+      "tokens": 65,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 457.1,
+      "tokens": 20,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 467.3,
+      "tokens": 20,
+      "blocked": false
+    },
+    {
+      "domain": "packages",
+      "elapsed_ms": 385.9,
+      "tokens": 15,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 816.5,
+      "tokens": 47,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 831.8,
+      "tokens": 47,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 767.8,
+      "tokens": 42,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 814.0,
+      "tokens": 43,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 754.8,
+      "tokens": 40,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 681.4,
+      "tokens": 37,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 374.2,
+      "tokens": 14,
+      "blocked": true
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 669.4,
+      "tokens": 36,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 558.6,
+      "tokens": 27,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 860.2,
+      "tokens": 49,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 885.5,
+      "tokens": 48,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 381.2,
+      "tokens": 14,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 632.4,
+      "tokens": 32,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 420.9,
+      "tokens": 15,
+      "blocked": false
+    },
+    {
+      "domain": "packages",
+      "elapsed_ms": 725.5,
+      "tokens": 38,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 424.8,
+      "tokens": 15,
+      "blocked": false
+    },
+    {
+      "domain": "packages",
+      "elapsed_ms": 520.1,
+      "tokens": 22,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 819.4,
+      "tokens": 42,
+      "blocked": false
+    },
+    {
+      "domain": "packages",
+      "elapsed_ms": 586.6,
+      "tokens": 26,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 615.0,
+      "tokens": 28,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 642.8,
+      "tokens": 30,
+      "blocked": false
+    },
+    {
+      "domain": "packages",
+      "elapsed_ms": 819.1,
+      "tokens": 42,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 722.2,
+      "tokens": 36,
+      "blocked": false
+    },
+    {
+      "domain": "packages",
+      "elapsed_ms": 687.9,
+      "tokens": 33,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 655.6,
+      "tokens": 31,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 605.2,
+      "tokens": 28,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 645.2,
+      "tokens": 30,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 799.9,
+      "tokens": 41,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 756.4,
+      "tokens": 38,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 917.8,
+      "tokens": 49,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 578.9,
+      "tokens": 26,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 726.4,
+      "tokens": 36,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 1066.9,
+      "tokens": 59,
+      "blocked": false
+    },
+    {
+      "domain": "packages",
+      "elapsed_ms": 15560.4,
+      "tokens": 1024,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 743.8,
+      "tokens": 37,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 755.5,
+      "tokens": 38,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 465.2,
+      "tokens": 18,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 766.7,
+      "tokens": 38,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 523.5,
+      "tokens": 22,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 681.4,
+      "tokens": 32,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 593.0,
+      "tokens": 27,
+      "blocked": false
+    },
+    {
+      "domain": "kernel",
+      "elapsed_ms": 756.0,
+      "tokens": 38,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 787.4,
+      "tokens": 40,
+      "blocked": false
+    },
+    {
+      "domain": "packages",
+      "elapsed_ms": 638.8,
+      "tokens": 30,
+      "blocked": false
+    },
+    {
+      "domain": "process",
+      "elapsed_ms": 470.6,
+      "tokens": 18,
+      "blocked": true
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 531.8,
+      "tokens": 22,
+      "blocked": false
+    },
+    {
+      "domain": "files",
+      "elapsed_ms": 1938.8,
+      "tokens": 119,
+      "blocked": false
+    },
+    {
+      "domain": "kernel",
+      "elapsed_ms": 1171.1,
+      "tokens": 66,
+      "blocked": false
+    },
+    {
+      "domain": "network",
+      "elapsed_ms": 871.2,
+      "tokens": 46,
+      "blocked": false
+    },
+    {
+      "domain": "kernel",
+      "elapsed_ms": 757.3,
+      "tokens": 37,
+      "blocked": true
+    }
+  ]
+}
