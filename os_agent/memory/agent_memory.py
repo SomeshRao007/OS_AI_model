@@ -40,10 +40,12 @@ class AgentMemory:
         state_dir: str,
         faiss_dims: int = 384,
         max_vectors: int = 500,
+        max_age_days: int = 30,
     ) -> None:
         self._domain = domain
         self._faiss_dims = faiss_dims
         self._max_vectors = max_vectors
+        self._max_age_days = max_age_days
         self._memory_dir = Path(state_dir).expanduser() / "memory"
         self._memory_dir.mkdir(parents=True, exist_ok=True)
         self._model = None  # lazy-loaded sentence-transformers
@@ -145,18 +147,44 @@ class AgentMemory:
 
     # --- pruning ---
 
+    def _prune_aged(self) -> bool:
+        """Remove solutions older than max_age_days. Rebuilds index if any removed.
+
+        Returns True if the index was modified (so caller can persist).
+        max_age_days <= 0 disables time-based pruning entirely.
+        """
+        if self._max_age_days <= 0:
+            return False
+        cutoff = time.time() - self._max_age_days * 86400
+        fresh = [s for s in self._solutions if s.timestamp >= cutoff]
+        if len(fresh) == len(self._solutions):
+            return False  # nothing expired
+
+        import faiss
+        self._solutions = fresh
+        self._index = faiss.IndexFlatL2(self._faiss_dims)
+        if fresh:
+            vectors = np.array(
+                [self._embed(s.query) for s in fresh], dtype=np.float32,
+            )
+            self._index.add(vectors)
+        return True
+
     def _maybe_prune(self) -> None:
-        """If over max_vectors, rebuild index keeping most recent entries."""
+        """Prune aged solutions first, then enforce max_vectors capacity."""
+        # Age pruning reduces count before capacity check — avoids evicting
+        # recent solutions just because the index is full of old ones.
+        self._prune_aged()
+
         if len(self._solutions) <= self._max_vectors:
             return
 
-        # sort by timestamp descending, keep most recent
+        # Capacity pruning: keep most recent max_vectors entries
         sorted_solutions = sorted(
             self._solutions, key=lambda s: s.timestamp, reverse=True,
         )
         self._solutions = sorted_solutions[:self._max_vectors]
 
-        # rebuild FAISS index from scratch
         import faiss
         self._index = faiss.IndexFlatL2(self._faiss_dims)
         vectors = np.array(
@@ -192,6 +220,10 @@ class AgentMemory:
                     )
                     for s in raw
                 ]
+                # Prune expired solutions on load and persist the cleaned state.
+                # This ensures stale solutions don't accumulate across restarts.
+                if self._prune_aged():
+                    self._save_index()
                 return
             except (json.JSONDecodeError, OSError, KeyError):
                 pass  # fall through to create empty

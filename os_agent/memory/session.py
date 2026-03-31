@@ -45,7 +45,7 @@ class SessionContext:
     def recent_turns(self, n: int = 5) -> list[Turn]:
         return self._turns[-n:]
 
-    def get_context_string(self, n: int = 3, max_chars_per_turn: int = 120) -> str:
+    def get_context_string(self, n: int = 3, max_chars_per_turn: int = 250) -> str:
         """Format recent turns for compact prompt injection.
 
         Each turn is truncated to fit within the token budget. Domain tags
@@ -57,9 +57,9 @@ class SessionContext:
             return ""
         lines = ["Recent session:"]
         for i, t in enumerate(turns, 1):
-            q = t.query[:60]
+            q = t.query[:100]
             # Extract just the command or first line of response
-            resp = t.response.strip().split("\n")[0][:60]
+            resp = t.response.strip().split("\n")[0][:150]
             line = f"[{i}] Q: {q} | A: {resp} (domain: {t.domain})"
             lines.append(line[:max_chars_per_turn])
         return "\n".join(lines)

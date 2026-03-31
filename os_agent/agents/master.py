@@ -94,12 +94,13 @@ class MasterAgent:
         state_dir = mem_cfg.get("state_dir", "~/.local/share/ai-daemon")
         faiss_dims = mem_cfg.get("faiss_dims", 384)
         max_vectors = mem_cfg.get("max_vectors_per_domain", 500)
+        max_age_days = mem_cfg.get("max_solution_age_days", 30)
 
         self._shared_state = SharedState(state_dir)
         self._session = SessionContext()
 
         def _mem(domain: str) -> AgentMemory:
-            return AgentMemory(domain, state_dir, faiss_dims, max_vectors)
+            return AgentMemory(domain, state_dir, faiss_dims, max_vectors, max_age_days)
 
         self._agents: dict[str, BaseAgent] = {
             "files": FilesAgent(memory=_mem("files")),

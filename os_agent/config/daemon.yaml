@@ -25,6 +25,7 @@ memory:
   state_dir: "~/.local/share/ai-daemon"
   faiss_dims: 384  # all-MiniLM-L6-v2 embedding size
   max_vectors_per_domain: 500
+  max_solution_age_days: 30  # solutions older than this are pruned on load and store
 
 notify:
   enabled: true

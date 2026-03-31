@@ -10,8 +10,11 @@ from os_agent.inference.prompt import get_prompt
 from os_agent.memory.agent_memory import AgentMemory
 
 
-# max chars per memory hit injected into the system prompt
-_MAX_HIT_CHARS = 200
+# max chars per memory hit injected into the system prompt.
+# Long pipelines (find/awk/sed with multiple options) can exceed 200 chars,
+# cutting off the most useful part. 300 covers realistic worst-case commands
+# without meaningfully impacting the 2048-token context budget.
+_MAX_HIT_CHARS = 300
 
 
 @dataclass(frozen=True, slots=True)
