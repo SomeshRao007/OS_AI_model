@@ -1,0 +1,14 @@
+# ai-deps.list.chroot — Python runtime and AI dependency apt packages.
+# Populated in Step 4: Python Runtime & AI Dependencies.
+# This file is intentionally empty for the Step 1 minimal test build.
+# NOTE: pip packages (llama-cpp-python, faiss-cpu, sentence-transformers, etc.)
+# are installed via config/hooks/live/0200-ai-deps.hook.chroot, not here.
+
+# python3
+# python3-pip
+# python3-venv
+# python3-yaml
+# python3-dbus
+# python3-dev
+# build-essential
+# cmake

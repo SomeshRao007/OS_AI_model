@@ -1,0 +1,48 @@
+# base.list.chroot — Core system packages for the AI OS live image.
+# Installed into the chroot (the live ISO filesystem).
+# Populated in Step 1. All other steps ADD to this, never remove from it.
+
+# ── Live system runtime ───────────────────────────────────────────────────────
+# These three packages make the ISO a functioning live system:
+# live-boot    → sets up the overlay filesystem (squashfs + tmpfs) at boot
+# live-config  → configures hostname, user account, locale, etc. at first boot
+live-boot
+live-boot-initramfs-tools
+live-config
+live-config-systemd
+
+# ── Init and device management ───────────────────────────────────────────────
+systemd-sysv
+udev
+
+# ── D-Bus (required by desktop, daemon IPC, and notifications) ───────────────
+dbus
+dbus-user-session
+
+# ── Networking ───────────────────────────────────────────────────────────────
+network-manager
+wpasupplicant
+ca-certificates
+
+# ── Privilege management ─────────────────────────────────────────────────────
+sudo
+# NOTE: polkit was reorganized in Trixie — correct package name verified and
+# added in Step 3 (desktop requires it; TTY-only Step 1 does not need it)
+
+# ── Shell and terminal basics ─────────────────────────────────────────────────
+bash-completion
+less
+wget
+curl
+procps
+psmisc
+util-linux
+
+# ── Locale and keyboard ──────────────────────────────────────────────────────
+locales
+tzdata
+keyboard-configuration
+console-setup
+
+# ── Package management support ───────────────────────────────────────────────
+apt-utils

@@ -1,0 +1,6 @@
+#!/bin/sh
+# auto/clean — live-build auto-clean script.
+# Called automatically by `lb clean`. The `noauto` keyword prevents recursion.
+set -e
+
+lb clean noauto "${@}"

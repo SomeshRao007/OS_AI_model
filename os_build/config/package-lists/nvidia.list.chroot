@@ -1,0 +1,10 @@
+# nvidia.list.chroot — NVIDIA GPU drivers and CUDA runtime.
+# Populated in Step 2: NVIDIA Driver Integration.
+# This file is intentionally empty for the Step 1 minimal test build.
+# WARNING: Do not add packages here without reading the Step 2 DKMS notes —
+# kernel header mismatches during chroot build are the highest-risk failure.
+
+# nvidia-driver
+# nvidia-kernel-dkms
+# nvidia-smi
+# firmware-misc-nonfree   (already in firmware.list.chroot — do not duplicate)

@@ -1,5 +1,4 @@
-# Claude Code
-.claude/
+.*/
 
 # Python virtual environment (local only, never commit)
 os_agent_env/

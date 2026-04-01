@@ -1,0 +1,22 @@
+# tools.list.chroot — System and developer tools available in the live OS.
+# Populated in Step 1.
+
+# ── General utilities ────────────────────────────────────────────────────────
+git
+jq
+rsync
+unzip
+
+# ── System monitoring ────────────────────────────────────────────────────────
+htop
+btop
+
+# ── Sandboxed execution (required by os_agent command executor) ───────────────
+# bubblewrap creates per-command namespaced sandboxes — core safety mechanism.
+bubblewrap
+
+# ── Desktop notification support (used by os_agent notify module) ─────────────
+libnotify-bin
+
+# ── D-Bus CLI tools (useful for debugging daemon IPC) ────────────────────────
+dbus-x11

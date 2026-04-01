@@ -1,0 +1,23 @@
+# desktop.list.chroot — KDE Plasma 6 desktop environment.
+# Populated in Step 3: KDE Plasma 6 Desktop.
+# This file is intentionally empty for the Step 1 minimal test build.
+
+# plasma-desktop
+# plasma-workspace
+# sddm
+# konsole
+# dolphin
+# spectacle
+# plasma-nm
+# plasma-pa
+# powerdevil
+# bluedevil
+# breeze
+# breeze-gtk-theme
+# kde-config-sddm
+# xdg-desktop-portal-kde
+# pipewire
+# pipewire-alsa
+# pipewire-audio
+# wireplumber
+# xwayland

@@ -1,0 +1,25 @@
+# firmware.list.chroot — Hardware firmware for broad out-of-the-box support.
+# Covers WiFi, audio, Bluetooth, and CPU microcode for most common hardware.
+# All packages come from the non-free-firmware archive area.
+# Populated in Step 1.
+
+# ── CPU microcode (security and stability patches) ────────────────────────────
+intel-microcode
+amd64-microcode
+
+# ── General Linux firmware (free tier) ───────────────────────────────────────
+firmware-linux-free
+
+# ── Non-free firmware ────────────────────────────────────────────────────────
+# Covers NVIDIA firmware blobs, misc chipset firmware
+firmware-misc-nonfree
+
+# ── WiFi chipset firmware ────────────────────────────────────────────────────
+firmware-iwlwifi
+firmware-realtek
+firmware-atheros
+firmware-brcm80211
+
+# ── Audio DSP firmware (Intel HDA + Sound Open Firmware) ─────────────────────
+firmware-intel-sound
+firmware-sof-signed
