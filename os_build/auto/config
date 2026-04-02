@@ -9,7 +9,7 @@ lb config noauto \
     --archive-areas         "main contrib non-free non-free-firmware" \
     --debootstrap-options   "--variant=minbase" \
     --binary-images         "iso-hybrid" \
-    --bootappend-live       "boot=live components quiet splash live-config.user-default-groups=audio,cdrom,dip,floppy,video,plugdev,netdev,sudo" \
+    --bootappend-live       "boot=live components quiet splash live-config.user-default-groups=audio,cdrom,dip,floppy,video,plugdev,netdev,sudo,render nvidia-drm.modeset=1 nouveau.modeset=0 modprobe.blacklist=nouveau" \
     --linux-flavours        "amd64" \
     --compression           "xz" \
     --apt-recommends        "false" \

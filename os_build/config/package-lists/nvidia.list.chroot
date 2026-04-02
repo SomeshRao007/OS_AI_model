@@ -1,10 +1,30 @@
-# nvidia.list.chroot — NVIDIA GPU drivers and CUDA runtime.
+# nvidia.list.chroot — NVIDIA GPU drivers for the AI OS live image.
 # Populated in Step 2: NVIDIA Driver Integration.
-# This file is intentionally empty for the Step 1 minimal test build.
-# WARNING: Do not add packages here without reading the Step 2 DKMS notes —
-# kernel header mismatches during chroot build are the highest-risk failure.
+#
+# IMPORTANT: linux-headers-amd64 MUST be listed before nvidia-kernel-dkms.
+# DKMS compiles the nvidia kernel module during chroot build — without headers
+# matching the installed kernel, the build fails silently and the module is
+# missing from the ISO. --apt-recommends false means headers are NOT pulled
+# automatically.
+#
+# NOTE: nvidia-cuda-toolkit is intentionally NOT here. It adds ~2GB and is only
+# needed to BUILD llama-cpp-python with CUDA (Step 4). For runtime inference,
+# libcuda1 (pulled as a dependency of nvidia-driver) is sufficient.
+#
+# NOTE: firmware-misc-nonfree is already in firmware.list.chroot — do not
+# duplicate here. It provides the NVIDIA firmware blobs the driver needs.
 
-# nvidia-driver
-# nvidia-kernel-dkms
-# nvidia-smi
-# firmware-misc-nonfree   (already in firmware.list.chroot — do not duplicate)
+# ── Kernel headers (MUST come first for DKMS) ───────────────────────────────
+linux-headers-amd64
+
+# ── Build tools for DKMS kernel module compilation ──────────────────────────
+# gcc is only a Recommends of dkms (not Depends), so --apt-recommends false
+# drops it. Without gcc, DKMS has make but no compiler → module build fails.
+# These can be removed from the final ISO in Step 11's cleanup hook (0600)
+# if disk space is tight — but they're needed during build.
+gcc
+dkms
+
+# ── NVIDIA driver stack ──────────────────────────────────────────────────────
+nvidia-driver
+nvidia-kernel-dkms

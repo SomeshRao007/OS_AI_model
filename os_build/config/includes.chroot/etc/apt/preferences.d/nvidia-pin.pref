@@ -1,0 +1,21 @@
+# nvidia-pin.pref — Pin NVIDIA driver to the 550.x series.
+#
+# Why: NVIDIA driver upgrades can break DKMS module builds if the new driver
+# version is incompatible with the running kernel. Pinning to 550.* allows
+# point releases (security/bug fixes) but blocks major version jumps (e.g.,
+# 560.x, 570.x) that may require kernel changes or have regressions.
+#
+# The live ISO ships with a DKMS-compiled module for 550.x. If the user runs
+# apt upgrade on a persistent live session, this pin prevents the driver from
+# jumping to an untested version.
+#
+# To upgrade to a new major version: update this file and rebuild the ISO.
+
+Package: nvidia-driver nvidia-kernel-dkms nvidia-kernel-source nvidia-driver-libs
+Pin: version 550.*
+Pin-Priority: 900
+
+# Prevent any other version from being installed (lower than default 500)
+Package: nvidia-driver nvidia-kernel-dkms nvidia-kernel-source nvidia-driver-libs
+Pin: version *
+Pin-Priority: 100
