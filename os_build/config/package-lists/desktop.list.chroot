@@ -1,25 +1,66 @@
-# desktop.list.chroot — KDE Plasma 6 desktop environment.
+# desktop.list.chroot — KDE Plasma 6 desktop environment for AI OS.
 # Populated in Step 3: KDE Plasma 6 Desktop.
-# This file is intentionally empty for the Step 1 minimal test build.
+#
+# Uses kde-plasma-desktop metapackage for a complete baseline, then adds
+# explicit packages that --apt-recommends false would otherwise drop.
+#
+# Default session: Plasma Wayland (industry direction — faster, more secure).
+# X11 session available as fallback from SDDM login screen.
+#
+# Stripped: No KDE PIM, no games, no Konqueror, no web browser.
+# Kept: Dolphin, Konsole, Spectacle, System Settings.
 
-# plasma-desktop
-# plasma-workspace
-# sddm
-# konsole
-# dolphin
-# spectacle
-# plasma-nm
-# plasma-pa
-# powerdevil
-# bluedevil
-# breeze
-# breeze-gtk-theme
-# kde-config-sddm
-# xdg-desktop-portal-kde
-# pipewire
-# pipewire-alsa
-# wireplumber
-# xwayland
-# NOTE: polkit split in Trixie — use polkitd + pkexec (NOT the old "polkit")
-# polkitd
-# pkexec
+# ── Core desktop ─────────────────────────────────────────────────────────────
+kde-plasma-desktop
+sddm
+
+# ── Display server ───────────────────────────────────────────────────────────
+# plasma-desktop does NOT pull display server packages automatically.
+# xserver-xorg-core: needed for X11 fallback session + XWayland
+# xwayland: runs X11 apps inside Wayland session (many apps still need this)
+xserver-xorg-core
+xwayland
+
+# ── Polkit (privilege escalation dialogs) ────────────────────────────────────
+# polkit was split in Trixie. polkit-kde-agent-1 provides the graphical
+# "enter password to perform admin action" dialog. Without it, privilege
+# escalation silently fails.
+polkitd
+pkexec
+polkit-kde-agent-1
+
+# ── Audio (PipeWire — Trixie default) ────────────────────────────────────────
+# pipewire-audio is the Debian metapackage that pulls pipewire-pulse
+# (PulseAudio compat), wireplumber (session manager), and ALSA integration.
+# plasma-pa (volume widget) works via the PulseAudio compatibility layer.
+pipewire-audio
+plasma-pa
+
+# ── Networking GUI ───────────────────────────────────────────────────────────
+# network-manager is already in base.list.chroot (backend).
+# plasma-nm provides the Plasma system tray widget for WiFi/VPN management.
+plasma-nm
+
+# ── Power + Bluetooth ────────────────────────────────────────────────────────
+powerdevil
+bluedevil
+
+# ── Theming ──────────────────────────────────────────────────────────────────
+breeze
+breeze-gtk-theme
+
+# ── Phonon (multimedia backend) ──────────────────────────────────────────────
+# Only Recommends of kde-plasma-desktop — dropped by --apt-recommends false.
+# phonon-vlc is the only actively maintained backend.
+phonon-vlc
+
+# ── Wayland integration ──────────────────────────────────────────────────────
+xdg-desktop-portal-kde
+
+# ── Applications (minimal set) ───────────────────────────────────────────────
+konsole
+dolphin
+kde-spectacle
+
+# ── SDDM config ─────────────────────────────────────────────────────────────
+kde-config-sddm

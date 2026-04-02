@@ -28,3 +28,10 @@ dkms
 # ── NVIDIA driver stack ──────────────────────────────────────────────────────
 nvidia-driver
 nvidia-kernel-dkms
+nvidia-smi
+
+# ── Wayland support (Step 3) ─────────────────────────────────────────────────
+# EGL Wayland library required for NVIDIA GPU + Wayland compositors.
+# Without this, KDE Plasma Wayland session falls back to software rendering
+# or fails to start on NVIDIA hardware.
+libnvidia-egl-wayland1
