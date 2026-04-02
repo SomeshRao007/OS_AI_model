@@ -24,7 +24,14 @@ network-manager
 wpasupplicant
 ca-certificates
 
-# ── Privilege management ─────────────────────────────────────────────────────
+# ── User and privilege management ────────────────────────────────────────────
+# user-setup is required by live-config's 0030-user-setup component.
+# It provides /usr/lib/user-setup/user-setup-apply which actually creates the
+# live session user account (username "user", password "live").
+# It is only a Recommends of live-config, so --apt-recommends false drops it.
+# Without it, live-config silently skips user creation → "Authentication failure".
+user-setup
+adduser
 sudo
 # NOTE: polkit was reorganized in Trixie — correct package name verified and
 # added in Step 3 (desktop requires it; TTY-only Step 1 does not need it)
@@ -43,6 +50,12 @@ locales
 tzdata
 keyboard-configuration
 console-setup
+
+# ── PAM / session management ────────────────────────────────────────────────
+# libpam-systemd is a Recommends of systemd (not a hard Depends), so
+# --apt-recommends false strips it. Without it pam_systemd.so is missing and
+# the PAM session stack fails → "Authentication failure" on TTY auto-login.
+libpam-systemd
 
 # ── Package management support ───────────────────────────────────────────────
 apt-utils

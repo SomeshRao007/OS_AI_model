@@ -18,6 +18,8 @@
 # xdg-desktop-portal-kde
 # pipewire
 # pipewire-alsa
-# pipewire-audio
 # wireplumber
 # xwayland
+# NOTE: polkit split in Trixie — use polkitd + pkexec (NOT the old "polkit")
+# polkitd
+# pkexec

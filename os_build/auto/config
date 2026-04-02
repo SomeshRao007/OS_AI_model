@@ -9,7 +9,7 @@ lb config noauto \
     --archive-areas         "main contrib non-free non-free-firmware" \
     --debootstrap-options   "--variant=minbase" \
     --binary-images         "iso-hybrid" \
-    --bootappend-live       "boot=live components quiet splash" \
+    --bootappend-live       "boot=live components quiet splash live-config.user-default-groups=audio,cdrom,dip,floppy,video,plugdev,netdev,sudo" \
     --linux-flavours        "amd64" \
     --compression           "xz" \
     --apt-recommends        "false" \
