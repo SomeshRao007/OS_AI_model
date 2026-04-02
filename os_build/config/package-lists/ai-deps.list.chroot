@@ -1,14 +1,27 @@
-# ai-deps.list.chroot — Python runtime and AI dependency apt packages.
+# ai-deps.list.chroot — Python runtime and build tools for AI dependencies.
 # Populated in Step 4: Python Runtime & AI Dependencies.
-# This file is intentionally empty for the Step 1 minimal test build.
-# NOTE: pip packages (llama-cpp-python, faiss-cpu, sentence-transformers, etc.)
-# are installed via config/hooks/live/0200-ai-deps.hook.chroot, not here.
+#
+# Apt packages listed here provide the Python runtime and C/C++ build tools
+# needed to compile llama-cpp-python with CUDA. Pip packages (llama-cpp-python,
+# faiss-cpu, sentence-transformers, etc.) are installed by the chroot hook
+# config/hooks/live/0200-ai-deps.hook.chroot — NOT listed here.
+#
+# Build-only packages (cmake, build-essential, python3-dev) can be purged in
+# the Step 11 cleanup hook (0600) to save ISO space — the compiled .so files
+# they produce are self-contained at runtime. See ADR-P2-009 in architecture.md.
 
-# python3
-# python3-pip
-# python3-venv
-# python3-yaml
-# python3-dbus
-# python3-dev
-# build-essential
-# cmake
+# ── Python runtime ───────────────────────────────────────────────────────────
+python3
+python3-pip
+python3-venv
+python3-yaml
+python3-dbus
+
+# ── Build tools for compiling pip packages with C extensions ─────────────────
+# llama-cpp-python compiles llama.cpp C++ code and links CUDA.
+# sentence-transformers pulls torch which may need compilation support.
+# These are build-time only — safe to purge after pip install.
+python3-dev
+build-essential
+cmake
+git

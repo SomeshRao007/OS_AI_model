@@ -7,9 +7,10 @@
 # missing from the ISO. --apt-recommends false means headers are NOT pulled
 # automatically.
 #
-# NOTE: nvidia-cuda-toolkit is intentionally NOT here. It adds ~2GB and is only
-# needed to BUILD llama-cpp-python with CUDA (Step 4). For runtime inference,
-# libcuda1 (pulled as a dependency of nvidia-driver) is sufficient.
+# NOTE: nvidia-cuda-toolkit is installed for build-time CUDA compilation of
+# llama-cpp-python (Step 4). It adds ~2GB but the compiled .so is self-contained
+# at runtime — the toolkit can be purged in the cleanup hook (Step 11).
+# See ADR-P2-009 in architecture.md for the full rationale.
 #
 # NOTE: firmware-misc-nonfree is already in firmware.list.chroot — do not
 # duplicate here. It provides the NVIDIA firmware blobs the driver needs.
@@ -29,6 +30,12 @@ dkms
 nvidia-driver
 nvidia-kernel-dkms
 nvidia-smi
+
+# ── CUDA toolkit (build-time, stripped in cleanup) ───────────────────────────
+# Provides nvcc compiler and CUDA headers needed to compile llama-cpp-python
+# with GPU support. Purged in 0600-cleanup.hook.chroot — runtime only needs
+# libcuda1 + libcublas12 (both kept as nvidia-driver dependencies).
+nvidia-cuda-toolkit
 
 # ── Wayland support (Step 3) ─────────────────────────────────────────────────
 # EGL Wayland library required for NVIDIA GPU + Wayland compositors.
