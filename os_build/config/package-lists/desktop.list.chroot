@@ -51,8 +51,8 @@ breeze-gtk-theme
 
 # ── Phonon (multimedia backend) ──────────────────────────────────────────────
 # Only Recommends of kde-plasma-desktop — dropped by --apt-recommends false.
-# phonon-vlc is the only actively maintained backend.
-phonon-vlc
+# Plasma 6 uses Qt6, so the package is phonon4qt6-backend-vlc (not phonon-vlc).
+phonon4qt6-backend-vlc
 
 # ── Wayland integration ──────────────────────────────────────────────────────
 xdg-desktop-portal-kde
