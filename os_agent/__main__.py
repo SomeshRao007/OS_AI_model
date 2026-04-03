@@ -21,8 +21,9 @@ def main():
     args = parser.parse_args()
 
     if args.daemon:
-        print("daemon mode not implemented yet (Step 9)")
-        sys.exit(1)
+        from os_agent.ipc.dbus_service import run_daemon
+        run_daemon()
+        return
 
     # Default: launch neurosh shell
     from os_agent.shell import NeuroshShell

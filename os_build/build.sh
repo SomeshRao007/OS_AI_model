@@ -16,6 +16,35 @@ echo "[aios-build] ── Step 1: Clean previous build artifacts ─────
 # Safe: does NOT remove config/ (our package lists, hooks, includes).
 lb clean --purge 2>/dev/null || true
 
+echo "[aios-build] ── Step 1b: Stage os_agent + model into includes.chroot ─"
+# Copy the os_agent Python package and GGUF model into the chroot overlay.
+# These end up at /opt/ai-daemon/ inside the live filesystem.
+# The model is bind-mounted into the container at /build/model.gguf by
+# docker-build.sh.
+
+INCLUDES="/build/os_build/config/includes.chroot"
+DAEMON_DIR="${INCLUDES}/opt/ai-daemon"
+
+# Copy os_agent source (exclude tests, benchmarks, __pycache__)
+mkdir -p "${DAEMON_DIR}/os_agent"
+rsync -a --delete \
+    --exclude='__pycache__' \
+    --exclude='*.pyc' \
+    --exclude='Agent_benchmark_testing' \
+    --exclude='shell_testing' \
+    --exclude='tools_testing' \
+    /build/os_agent/ "${DAEMON_DIR}/os_agent/"
+
+# Copy the GGUF model
+mkdir -p "${DAEMON_DIR}/models"
+if [[ -f /build/model.gguf ]]; then
+    echo "[aios-build] Copying GGUF model ($(du -h /build/model.gguf | cut -f1))..."
+    cp /build/model.gguf "${DAEMON_DIR}/models/qwen3.5-4b-os-q4km.gguf"
+else
+    echo "[aios-build] WARNING: No model.gguf found at /build/model.gguf"
+    echo "[aios-build]          ISO will boot without a default model."
+fi
+
 echo "[aios-build] ── Step 2: Configure live-build ────────────────────────"
 # Runs auto/config which calls: lb config noauto <our flags>
 lb config

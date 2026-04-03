@@ -130,6 +130,8 @@ gcc-14-base:amd64	14.2.0-19
 gcc-14-x86-64-linux-gnu	14.2.0-19
 gcc-x86-64-linux-gnu	4:14.2.0-1
 gdb	16.3-1
+gir1.2-girepository-2.0:amd64	1.84.0-1
+gir1.2-glib-2.0:amd64	2.84.4-3~deb13u2
 git	1:2.47.3-0+deb13u1
 git-man	1:2.47.3-0+deb13u1
 glib-networking:amd64	2.80.1-1
@@ -383,6 +385,7 @@ libgdbm6t64:amd64	1.24-2
 libgdk-pixbuf-2.0-0:amd64	2.42.12+dfsg-4
 libgdk-pixbuf2.0-common	2.42.12+dfsg-4
 libgfortran5:amd64	14.2.0-19
+libgirepository-1.0-1:amd64	1.84.0-1
 libgl1:amd64	1.7.0-1+b2
 libgl1-mesa-dri:amd64	25.0.7-2
 libgl1-nvidia-glvnd-glx:amd64	550.163.01-2
@@ -1147,6 +1150,7 @@ psmisc	23.7-2
 python3	3.13.5-1
 python3-dbus	1.4.0-1
 python3-dev	3.13.5-1
+python3-gi	3.50.0-4+b1
 python3-minimal	3.13.5-1
 python3-packaging	25.0-1
 python3-pip	25.1.1+dfsg-1

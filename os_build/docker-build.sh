@@ -103,6 +103,7 @@ echo ""
 docker run --rm \
     --privileged \
     -v "${BUILD_DIR}:/build/os_build" \
+    -v "${REPO_ROOT}/os_agent:/build/os_agent:ro" \
     -v "${MODEL_PATH}:/build/model.gguf:ro" \
     "${IMAGE_NAME}" \
     /build/os_build/build.sh
