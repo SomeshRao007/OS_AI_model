@@ -31,7 +31,10 @@ from os_agent.notify.desktop import DesktopNotifier, check_vram_and_warn
 from os_agent.tools.executor import SandboxedExecutor, RiskLevel
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-_CONFIG_PATH = _PROJECT_ROOT / "os_agent" / "config" / "daemon.yaml"
+_CONFIG_PATH = Path(
+    os.environ.get("AI_DAEMON_CONFIG",
+                   str(_PROJECT_ROOT / "os_agent" / "config" / "daemon.yaml"))
+)
 _HISTORY_FILE = Path.home() / ".neurosh_history"
 
 _log = logging.getLogger("neurosh")

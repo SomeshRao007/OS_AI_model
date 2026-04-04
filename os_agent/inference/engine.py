@@ -15,7 +15,13 @@ from llama_cpp import Llama
 
 # Project root: two levels up from os_agent/inference/engine.py
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-_CONFIG_PATH = _PROJECT_ROOT / "os_agent" / "config" / "daemon.yaml"
+
+# Config discovery: env var (set by systemd/neurosh launcher) → dev path
+import os as _os
+_CONFIG_PATH = Path(
+    _os.environ.get("AI_DAEMON_CONFIG",
+                     str(_PROJECT_ROOT / "os_agent" / "config" / "daemon.yaml"))
+)
 
 # Minimum chars to buffer before deciding if output starts with <think>
 _THINK_TAG = "<think>"
@@ -43,7 +49,8 @@ class InferenceEngine:
         model_cfg = config["model"]
         gen_cfg = config["generation"]
 
-        model_path = _PROJECT_ROOT / model_cfg["path"]
+        raw_path = Path(model_cfg["path"])
+        model_path = raw_path if raw_path.is_absolute() else _PROJECT_ROOT / raw_path
         if not model_path.exists():
             raise FileNotFoundError(f"Model not found: {model_path}")
 
