@@ -23,3 +23,4 @@ finetuning/data/raw/combined_directstyle.jsonl
 finetuning/data/output/
 finetuning/q4_k_m-deploy/qwen3.5-4b-os-q4km.gguf
 
+os_build/live-image-amd64.files

@@ -25,15 +25,23 @@ echo "[aios-build] ── Step 1b: Stage os_agent + model into includes.chroot �
 INCLUDES="/build/os_build/config/includes.chroot"
 DAEMON_DIR="${INCLUDES}/opt/ai-daemon"
 
-# Copy os_agent source (exclude tests, benchmarks, __pycache__)
+# Copy os_agent source (production code only — no tests, no stubs)
 mkdir -p "${DAEMON_DIR}/os_agent"
 rsync -a --delete \
     --exclude='__pycache__' \
     --exclude='*.pyc' \
-    --exclude='Agent_benchmark_testing' \
-    --exclude='shell_testing' \
-    --exclude='tools_testing' \
+    --exclude='Agent_benchmark_testing/' \
+    --exclude='framework_testing/' \
+    --exclude='memory_IO_testing/' \
+    --exclude='shell_testing/' \
+    --exclude='tools_testing/' \
+    --exclude='dbus_stub.py' \
+    --exclude='unix_socket.py' \
     /build/os_agent/ "${DAEMON_DIR}/os_agent/"
+
+echo "[aios-build] os_agent files staged:"
+find "${DAEMON_DIR}/os_agent" -type f | sort | head -50
+echo "[aios-build] Total: $(find "${DAEMON_DIR}/os_agent" -type f | wc -l) files"
 
 # Copy the GGUF model
 mkdir -p "${DAEMON_DIR}/models"
