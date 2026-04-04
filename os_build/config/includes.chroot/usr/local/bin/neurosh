@@ -1,0 +1,6 @@
+#!/bin/bash
+# neurosh — AI-powered terminal shell launcher.
+# Launches the neurosh interactive shell from the os_agent framework.
+export PYTHONPATH=/opt/ai-daemon
+export AI_DAEMON_CONFIG=/opt/ai-daemon/config/daemon.yaml
+exec python3 -m os_agent --shell "$@"

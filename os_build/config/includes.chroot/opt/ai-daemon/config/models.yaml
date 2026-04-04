@@ -1,0 +1,26 @@
+# models.yaml — Model registry for the AI OS daemon.
+# Defines available local models and optional cloud inference backends.
+# Users can add their own GGUF models by dropping files into
+# /opt/ai-daemon/models/ and adding entries here (or via Settings UI).
+
+models:
+  default: "qwen3.5-4b-os-q4km"
+
+  local:
+    - name: "qwen3.5-4b-os-q4km"
+      path: "/opt/ai-daemon/models/qwen3.5-4b-os-q4km.gguf"
+      type: "gguf"
+      description: "Default OS agent model (Qwen 3.5 4B, Q4_K_M quantization)"
+    # Users add their own models here:
+    # - name: "deepseek-7b"
+    #   path: "/opt/ai-daemon/models/deepseek-7b-q4km.gguf"
+    #   type: "gguf"
+    #   description: "DeepSeek 7B for longer context tasks"
+
+  # OpenRouter cloud inference (optional, user-configured)
+  openrouter:
+    enabled: false
+    api_key: ""  # User sets via Settings UI or env var OPENROUTER_API_KEY
+    default_model: "deepseek/deepseek-chat"
+    # Any model on OpenRouter works:
+    # anthropic/claude-sonnet-4-6, google/gemini-2.5-pro, etc.

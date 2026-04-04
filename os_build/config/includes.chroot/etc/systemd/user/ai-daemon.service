@@ -1,0 +1,24 @@
+[Unit]
+Description=AI System Daemon
+Documentation=https://github.com/SomeshRao007/OS_AI_model
+After=graphical-session.target
+Wants=dbus.socket
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -m os_agent --daemon
+Restart=on-failure
+RestartSec=3
+Environment=PYTHONPATH=/opt/ai-daemon
+Environment=AI_DAEMON_CONFIG=/opt/ai-daemon/config/daemon.yaml
+Environment=AI_MODELS_CONFIG=/opt/ai-daemon/config/models.yaml
+
+# Memory limits — leave headroom for KDE desktop (~600MB) + user apps
+MemoryMax=8G
+
+# GPU access: user is already in video/render groups via live-config
+# (set in auto/config bootappend-live). SupplementaryGroups is not
+# valid for user services — it causes exit code 216/GROUP.
+
+[Install]
+WantedBy=default.target

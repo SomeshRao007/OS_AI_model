@@ -1,0 +1,47 @@
+# os_agent daemon configuration — installed paths for AI OS live image.
+# This file is the production config baked into the ISO at /opt/ai-daemon/config/.
+# The development config is at os_agent/config/daemon.yaml in the repo.
+
+model:
+  path: "/opt/ai-daemon/models/qwen3.5-4b-os-q4km.gguf"
+  n_ctx: 2048
+  n_gpu_layers: -1      # all layers on GPU; set to 0 for CPU-only fallback
+
+generation:
+  temperature: 0.3
+  top_p: 0.98
+  top_k: 15
+  repeat_penalty: 1.1
+  max_tokens: 1024
+  stop_tokens:
+    - "<|im_end|>"
+    - "<|endoftext|>"
+
+shell:
+  name: "neurosh"
+  default_mode: "terminal"
+  chatbot_prefix: "?"
+  terminal_prefix: "!"
+
+memory:
+  state_dir: "~/.local/share/ai-daemon"
+  faiss_dims: 384
+  max_vectors_per_domain: 500
+  max_solution_age_days: 30
+
+notify:
+  enabled: true
+  vram_threshold_mb: 500
+  notify_on_moderate: false
+
+sandbox:
+  enabled: true
+  timeout_seconds: 30
+
+agents:
+  domains:
+    - files
+    - network
+    - process
+    - packages
+    - kernel
