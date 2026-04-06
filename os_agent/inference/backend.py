@@ -1,0 +1,271 @@
+"""Unified backend interface — abstracts local GGUF and OpenRouter inference.
+
+Agents call backend.infer() / backend.infer_streaming() without caring
+whether inference happens locally or in the cloud. BackendManager handles
+switching between backends and model hot-swap.
+"""
+
+from __future__ import annotations
+
+import logging
+import subprocess
+import threading
+from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Generator
+
+log = logging.getLogger("ai-daemon.backend")
+
+
+class InferenceBackend(ABC):
+    """Abstract base for all inference backends."""
+
+    @abstractmethod
+    def infer(self, system_prompt: str, user_message: str,
+              max_tokens: int | None = None) -> str:
+        """Synchronous inference. Returns cleaned response text."""
+
+    @abstractmethod
+    def infer_streaming(self, system_prompt: str, user_message: str,
+                        max_tokens: int | None = None) -> Generator[str, None, None]:
+        """Streaming inference. Yields text chunks."""
+
+    @abstractmethod
+    def unload(self) -> None:
+        """Free resources (VRAM/RAM for local, no-op for cloud)."""
+
+    @property
+    @abstractmethod
+    def backend_type(self) -> str:
+        """Return 'gpu', 'cpu', or 'openrouter'."""
+
+
+class LocalBackend(InferenceBackend):
+    """Wraps InferenceEngine for local GGUF model inference."""
+
+    def __init__(self, engine) -> None:
+        """Wrap an existing InferenceEngine instance.
+
+        Args:
+            engine: os_agent.inference.engine.InferenceEngine instance.
+        """
+        self._engine = engine
+
+    @property
+    def engine(self):
+        """Direct access to the underlying InferenceEngine.
+
+        Used by MasterAgent and specialist agents that call engine.infer()
+        or engine.infer_with_rag() directly.
+        """
+        return self._engine
+
+    def infer(self, system_prompt: str, user_message: str,
+              max_tokens: int | None = None) -> str:
+        return self._engine.infer(system_prompt, user_message, max_tokens)
+
+    def infer_streaming(self, system_prompt: str, user_message: str,
+                        max_tokens: int | None = None) -> Generator[str, None, None]:
+        yield from self._engine.infer_streaming(system_prompt, user_message, max_tokens)
+
+    def infer_with_rag(self, system_prompt: str, query: str,
+                       max_tokens: int | None = None) -> str:
+        """Delegate RAG-augmented inference to the engine."""
+        return self._engine.infer_with_rag(system_prompt, query, max_tokens)
+
+    def infer_validated(self, system_prompt: str, query: str,
+                        max_tokens: int | None = None) -> dict:
+        """Delegate validated inference to the engine."""
+        return self._engine.infer_validated(system_prompt, query, max_tokens)
+
+    def unload(self) -> None:
+        self._engine.unload()
+
+    @property
+    def backend_type(self) -> str:
+        if not _gpu_available():
+            return "cpu"
+        return "gpu"
+
+
+class OpenRouterBackend(InferenceBackend):
+    """Wraps OpenRouterClient for cloud inference via OpenRouter API."""
+
+    def __init__(self, client) -> None:
+        """Wrap an OpenRouterClient instance.
+
+        Args:
+            client: os_agent.inference.openrouter.OpenRouterClient instance.
+        """
+        self._client = client
+
+    @property
+    def client(self):
+        """Direct access to the underlying OpenRouterClient."""
+        return self._client
+
+    def infer(self, system_prompt: str, user_message: str,
+              max_tokens: int | None = None) -> str:
+        return self._client.infer(system_prompt, user_message, max_tokens)
+
+    def infer_streaming(self, system_prompt: str, user_message: str,
+                        max_tokens: int | None = None) -> Generator[str, None, None]:
+        yield from self._client.infer_streaming(system_prompt, user_message, max_tokens)
+
+    def unload(self) -> None:
+        self._client.close()
+
+    @property
+    def backend_type(self) -> str:
+        return "openrouter"
+
+
+class BackendManager:
+    """Manages the active inference backend and model switching.
+
+    Thread-safe: switch operations are serialised with a lock so concurrent
+    D-Bus SwitchModel calls don't race.
+    """
+
+    def __init__(self, config: dict, registry, initial_backend: InferenceBackend,
+                 initial_model_name: str) -> None:
+        """
+        Args:
+            config: daemon.yaml config dict (model + generation sections).
+            registry: ModelRegistry instance for model lookup/validation.
+            initial_backend: The backend loaded at daemon startup.
+            initial_model_name: Name of the initially loaded model.
+        """
+        self._config = config
+        self._registry = registry
+        self._active: InferenceBackend = initial_backend
+        self._active_model_name = initial_model_name
+        self._lock = threading.Lock()
+
+    @property
+    def active(self) -> InferenceBackend:
+        """Return the currently active backend."""
+        return self._active
+
+    @property
+    def active_model_name(self) -> str:
+        """Name of the currently loaded model."""
+        return self._active_model_name
+
+    def switch_to_local(self, model_name: str) -> tuple[bool, str]:
+        """Switch to a local GGUF model.
+
+        Validates the model, unloads the current backend, loads the new one.
+        Returns (success, error_message).
+        """
+        with self._lock:
+            model_info = self._registry.get_model(model_name)
+            if model_info is None:
+                return False, f"Model '{model_name}' not found in registry"
+
+            if model_info.type != "gguf":
+                return False, f"Model '{model_name}' is not a local GGUF model"
+
+            model_path = model_info.path
+            if not Path(model_path).exists():
+                return False, f"Model file not found: {model_path}"
+
+            if not self._registry.validate_gguf(model_path):
+                return False, f"Invalid GGUF file: {model_path}"
+
+            # Build config for the new model
+            new_config = dict(self._config)
+            new_model_cfg = dict(new_config.get("model", {}))
+            new_model_cfg["path"] = model_path
+            new_config["model"] = new_model_cfg
+
+            # Load new engine before unloading old — if load fails, we keep current
+            from os_agent.inference.engine import InferenceEngine
+            try:
+                new_engine = InferenceEngine(new_config)
+            except Exception as e:
+                return False, f"Failed to load model: {e}"
+
+            # New engine loaded successfully — now unload old
+            self._active.unload()
+
+            self._active = LocalBackend(new_engine)
+            self._active_model_name = model_name
+            log.info("Switched to local model: %s", model_name)
+            return True, ""
+
+    def switch_to_openrouter(self, api_key: str, model_id: str) -> tuple[bool, str]:
+        """Switch to OpenRouter cloud inference.
+
+        Tests the connection first. If test fails, keeps current backend
+        and returns failure.
+
+        Returns (success, error_message).
+        """
+        with self._lock:
+            from os_agent.inference.openrouter import OpenRouterClient
+
+            gen_cfg = self._config.get("generation", {})
+            client = OpenRouterClient(
+                api_key=api_key,
+                model_id=model_id,
+                temperature=gen_cfg.get("temperature", 0.3),
+                max_tokens=gen_cfg.get("max_tokens", 1024),
+            )
+
+            # Test connection before unloading local model
+            success, error = client.test_connection()
+            if not success:
+                log.warning("OpenRouter connection test failed: %s", error)
+                return False, error
+
+            # Test passed — unload local backend and switch
+            self._active.unload()
+            self._active = OpenRouterBackend(client)
+            self._active_model_name = f"openrouter:{model_id}"
+            log.info("Switched to OpenRouter model: %s", model_id)
+            return True, ""
+
+    def list_models(self) -> list[dict]:
+        """Return all available models with active flag set.
+
+        Returns list of dicts with: name, path, type, description, active.
+        """
+        registered = self._registry.list_models()
+        discovered = self._registry.scan_model_dir()
+
+        result = []
+        for model in registered + discovered:
+            result.append({
+                "name": model.name,
+                "path": model.path,
+                "type": model.type,
+                "description": model.description,
+                "active": model.name == self._active_model_name,
+            })
+
+        # Add OpenRouter entry if configured
+        or_config = self._registry.get_openrouter_config()
+        if or_config.get("enabled") or self._active.backend_type == "openrouter":
+            or_model = or_config.get("default_model", "deepseek/deepseek-chat")
+            or_name = f"openrouter:{or_model}"
+            result.append({
+                "name": or_name,
+                "path": "https://openrouter.ai/api/v1",
+                "type": "openrouter",
+                "description": f"Cloud inference via OpenRouter ({or_model})",
+                "active": self._active.backend_type == "openrouter",
+            })
+
+        return result
+
+
+def _gpu_available() -> bool:
+    """Check if an NVIDIA GPU is available via nvidia-smi."""
+    try:
+        result = subprocess.run(
+            ["nvidia-smi"], capture_output=True, timeout=5,
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False

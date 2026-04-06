@@ -39,14 +39,17 @@ Signals:
     StatusChanged(a{sv} status)
         Emitted when daemon status changes (model switch, mode change).
 
-Remaining work for Steps 6-7:
-    - Step 6 (Model Registry): Implement SwitchModel with actual model
-      hot-swap logic via InferenceEngine. Implement ListModels reading
-      from models.yaml. Connect BackendManager for GPU→CPU→OpenRouter
-      fallback chain.
-    - Step 7 (Plasmoid): Implement QueryStreaming with actual signal
-      emission per token. Connect ResponseChunk signal to QML chat UI
-      for streaming display. Wire StatusChanged to update panel icon color.
+Step 6 (complete):
+    - Query() routes through MasterAgent for full agent routing
+    - SwitchModel() hot-swaps local GGUFs or switches to OpenRouter
+    - OpenRouter: tests connection before unloading local model
+    - ListModels() includes registered, discovered, and OpenRouter models
+    - BackendManager handles all switching with thread safety
+
+Remaining work for Step 7:
+    - Implement QueryStreaming with actual signal emission per token
+    - Connect ResponseChunk signal to QML chat UI for streaming display
+    - Wire StatusChanged to update panel icon color
 """
 
 from __future__ import annotations
@@ -55,7 +58,6 @@ import json
 import logging
 import os
 import signal
-import sys
 import time
 from pathlib import Path
 from threading import Thread
@@ -68,6 +70,18 @@ from gi.repository import GLib
 import yaml
 
 log = logging.getLogger("ai-daemon.dbus")
+
+# General-purpose prompt for cloud/direct backend queries (no MasterAgent routing).
+# Used when OpenRouter is active — no domain classification, just general assistance.
+_GENERAL_SYSTEM_PROMPT = (
+    "You are an AI assistant built into a Linux-based operating system. "
+    "You help users with system administration, file management, networking, "
+    "package management, process management, and general Linux questions. "
+    "Respond with one correct command in a bash code block followed by a one-line explanation. "
+    "For conceptual questions, explain in 2-4 sentences with NO code blocks. "
+    "If the request is ambiguous, ask one clarifying question. "
+    "Never list alternatives. Never restate the question."
+)
 
 DBUS_INTERFACE = "org.aios.Daemon"
 DBUS_BUS_NAME = "org.aios.Daemon"
@@ -92,22 +106,51 @@ class AIDaemonService(dbus.service.Object):
         self._engine = None  # Set by connect_engine()
         self._model_name = "qwen3.5-4b-os-q4km"
         self._backend = "cpu"  # Updated when engine connects
+        self._backend_manager = None  # Set by connect_engine()
+        self._master_agent = None  # Set by connect_engine()
+        self._config = {}  # Set by connect_engine()
         self._config_dir = Path(
             os.environ.get("AI_DAEMON_CONFIG", "/opt/ai-daemon/config/daemon.yaml")
         ).parent
+        self._last_inference = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "elapsed_ms": 0,
+        }
         log.info("D-Bus service registered at %s", DBUS_OBJECT_PATH)
 
-    def connect_engine(self, engine, model_name: str, backend: str) -> None:
+    def connect_engine(self, engine, model_name: str, backend: str,
+                       config: dict | None = None) -> None:
         """Connect a live InferenceEngine instance (called from daemon startup).
+
+        Creates BackendManager (wrapping engine in LocalBackend) and
+        MasterAgent for full query routing.
 
         Args:
             engine: InferenceEngine instance (from os_agent.inference.engine)
             model_name: Name of the loaded model
             backend: "gpu", "cpu", or "openrouter"
+            config: daemon.yaml config dict
         """
         self._engine = engine
         self._model_name = model_name
         self._backend = backend
+        self._config = config or {}
+
+        from os_agent.inference.backend import LocalBackend, BackendManager
+        from os_agent.inference.model_registry import ModelRegistry
+        from os_agent.agents.master import MasterAgent
+
+        local_backend = LocalBackend(engine)
+        registry = ModelRegistry(self._config_dir)
+        self._backend_manager = BackendManager(
+            config=self._config,
+            registry=registry,
+            initial_backend=local_backend,
+            initial_model_name=model_name,
+        )
+        self._master_agent = MasterAgent(engine, self._config)
+
         log.info("Engine connected: model=%s, backend=%s", model_name, backend)
         self.StatusChanged(self._build_status())
 
@@ -117,25 +160,106 @@ class AIDaemonService(dbus.service.Object):
         DBUS_INTERFACE,
         in_signature="s",
         out_signature="s",
+        async_callbacks=("reply_cb", "error_cb"),
     )
-    def Query(self, question: str) -> str:
-        """Synchronous query — full response returned as string."""
+    def Query(self, question: str, reply_cb, error_cb) -> None:
+        """Async query — runs inference in a background thread so the GLib
+        main loop stays responsive for other D-Bus calls (GetStatus, etc.).
+        """
         log.info("Query received: %s", question[:80])
 
-        if self._engine is None:
-            return json.dumps({
+        if self._master_agent is None and self._backend_manager is None:
+            reply_cb(json.dumps({
                 "error": "Engine not loaded",
                 "message": "The AI daemon is starting up. Please wait a moment.",
-            })
+            }))
+            return
 
-        # Delegate to the agent framework
-        # Step 6 will wire this through MasterAgent for full routing
-        try:
-            response = self._engine.generate(question)
-            return response
-        except Exception as e:
-            log.error("Query failed: %s", e)
-            return json.dumps({"error": str(e)})
+        def _run():
+            try:
+                if self._master_agent is not None:
+                    log.info("Query routing via MasterAgent (backend=%s)", self._backend)
+                    result = self._master_agent.route(question)
+                    log.info("Query complete: domain=%s, %d chars",
+                             result.domain, len(result.response))
+                    reply_cb(result.response)
+                elif self._backend_manager is not None:
+                    log.info("Query routing via backend directly (backend=%s)",
+                             self._backend_manager.active.backend_type)
+                    response = self._backend_manager.active.infer(
+                        _GENERAL_SYSTEM_PROMPT, question
+                    )
+                    log.info("Query complete: %d chars", len(response))
+                    reply_cb(response)
+            except Exception as e:
+                log.error("Query failed: %s", e)
+                reply_cb(json.dumps({"error": str(e)}))
+
+        Thread(target=_run, daemon=True).start()
+
+    @dbus.service.method(
+        DBUS_INTERFACE,
+        in_signature="ss",
+        out_signature="s",
+        async_callbacks=("reply_cb", "error_cb"),
+    )
+    def Infer(self, system_prompt: str, user_message: str,
+              reply_cb, error_cb) -> None:
+        """Raw inference — takes system prompt + user message, returns response.
+
+        Unlike Query(), this does NOT route through MasterAgent. It sends
+        the prompt directly to the active backend (local GGUF or OpenRouter).
+        Used by neurosh's DaemonEngine so neurosh can do its own agent
+        routing locally while using the daemon's model/backend.
+        """
+        log.info("Infer received: %s", user_message[:80])
+
+        if self._backend_manager is None and self._engine is None:
+            reply_cb(json.dumps({
+                "error": "Engine not loaded",
+                "message": "The AI daemon is starting up. Please wait a moment.",
+            }))
+            return
+
+        def _run():
+            try:
+                t0 = time.time()
+                if self._backend_manager is not None:
+                    log.info("Infer via backend (type=%s)",
+                             self._backend_manager.active.backend_type)
+                    response = self._backend_manager.active.infer(
+                        system_prompt, user_message
+                    )
+                elif self._engine is not None:
+                    response = self._engine.infer(system_prompt, user_message)
+                else:
+                    response = json.dumps({"error": "No backend available"})
+                elapsed_ms = int((time.time() - t0) * 1000)
+                self._update_inference_stats(elapsed_ms)
+                log.info("Infer complete: %d chars, %dms", len(response), elapsed_ms)
+                reply_cb(response)
+            except Exception as e:
+                log.error("Infer failed: %s", e)
+                reply_cb(json.dumps({"error": str(e)}))
+
+        Thread(target=_run, daemon=True).start()
+
+    @dbus.service.method(
+        DBUS_INTERFACE,
+        in_signature="",
+        out_signature="a{sv}",
+    )
+    def GetLastInferenceInfo(self) -> dict:
+        """Return token counts and timing from the last inference call.
+
+        Returns dict with: prompt_tokens (u), completion_tokens (u), elapsed_ms (u).
+        Used by the Plasmoid and neurosh to display tok/s and context usage.
+        """
+        return dbus.Dictionary({
+            "prompt_tokens": dbus.UInt32(self._last_inference["prompt_tokens"]),
+            "completion_tokens": dbus.UInt32(self._last_inference["completion_tokens"]),
+            "elapsed_ms": dbus.UInt32(self._last_inference["elapsed_ms"]),
+        }, signature="sv")
 
     @dbus.service.method(
         DBUS_INTERFACE,
@@ -154,47 +278,72 @@ class AIDaemonService(dbus.service.Object):
     def SwitchModel(self, model_name: str) -> bool:
         """Switch to a different model. Returns True on success.
 
-        Step 6 implementation will:
-        1. Look up model_name in models.yaml
-        2. Unload current model from VRAM
-        3. Load new model
-        4. Update self._model_name and self._backend
-        5. Emit StatusChanged signal
+        For OpenRouter: use "openrouter:<model_id>" format (e.g.
+        "openrouter:deepseek/deepseek-chat"). Tests connection before
+        unloading local model. On failure, keeps current model and warns.
+
+        For local GGUF: use the model name from models.yaml.
         """
         log.info("SwitchModel requested: %s", model_name)
 
-        # Load models.yaml to validate the requested model exists
-        models_path = self._config_dir / "models.yaml"
-        if not models_path.exists():
-            log.error("models.yaml not found at %s", models_path)
+        if self._backend_manager is None:
+            log.error("BackendManager not initialized")
             return False
 
-        with open(models_path) as f:
-            registry = yaml.safe_load(f)
+        if model_name.startswith("openrouter:"):
+            return self._switch_to_openrouter(model_name)
 
-        local_models = registry.get("models", {}).get("local", [])
-        match = None
-        for m in local_models:
-            if m.get("name") == model_name:
-                match = m
-                break
+        return self._switch_to_local(model_name)
 
-        if match is None:
-            log.error("Model '%s' not found in registry", model_name)
+    def _switch_to_openrouter(self, model_name: str) -> bool:
+        """Handle switching to OpenRouter backend."""
+        model_id = model_name.split(":", 1)[1]
+
+        from os_agent.inference.openrouter import load_api_key
+        api_key = load_api_key()
+        if not api_key:
+            log.error("OpenRouter API key not configured")
+            self.StatusChanged(self._build_status_with_warning(
+                "OpenRouter API key not set. Configure in "
+                "~/.config/ai-daemon/secrets.yaml or OPENROUTER_API_KEY env var."
+            ))
             return False
 
-        model_path = match.get("path", "")
-        if not Path(model_path).exists():
-            log.error("Model file not found: %s", model_path)
+        success, error = self._backend_manager.switch_to_openrouter(api_key, model_id)
+        if not success:
+            log.warning("OpenRouter switch failed: %s", error)
+            self.StatusChanged(self._build_status_with_warning(
+                f"OpenRouter connection failed: {error}"
+            ))
             return False
 
-        # Step 6: actual hot-swap logic goes here
-        # self._engine.unload()
-        # self._engine.load(model_path)
-        # self._model_name = model_name
-        # self.StatusChanged(self._build_status())
-        log.info("SwitchModel: model '%s' validated, hot-swap deferred to Step 6", model_name)
-        return False  # Return False until Step 6 implements actual swap
+        self._model_name = model_name
+        self._backend = "openrouter"
+        self._engine = None  # Local engine unloaded
+        self._master_agent = None  # No local routing in cloud mode
+        log.info("Switched to OpenRouter: %s", model_id)
+        self.StatusChanged(self._build_status())
+        return True
+
+    def _switch_to_local(self, model_name: str) -> bool:
+        """Handle switching to a local GGUF model."""
+        success, error = self._backend_manager.switch_to_local(model_name)
+        if not success:
+            log.error("Local model switch failed: %s", error)
+            return False
+
+        self._model_name = model_name
+        backend = self._backend_manager.active
+        self._backend = backend.backend_type
+        self._engine = backend.engine  # type: ignore[attr-defined]
+
+        # Rebuild MasterAgent with the new engine
+        from os_agent.agents.master import MasterAgent
+        self._master_agent = MasterAgent(self._engine, self._config)
+
+        log.info("Switched to local model: %s (backend=%s)", model_name, self._backend)
+        self.StatusChanged(self._build_status())
+        return True
 
     @dbus.service.method(
         DBUS_INTERFACE,
@@ -202,36 +351,23 @@ class AIDaemonService(dbus.service.Object):
         out_signature="aa{sv}",
     )
     def ListModels(self) -> list:
-        """List all available models from the registry.
+        """List all available models with runtime state.
 
         Returns array of dicts with: name, path, type, description, active.
+        Includes registered models, discovered GGUFs, and OpenRouter if configured.
         """
-        models_path = self._config_dir / "models.yaml"
-        if not models_path.exists():
-            return []
+        if self._backend_manager is None:
+            return dbus.Array([], signature="a{sv}")
 
-        with open(models_path) as f:
-            registry = yaml.safe_load(f)
-
+        models = self._backend_manager.list_models()
         result = []
-        for m in registry.get("models", {}).get("local", []):
+        for m in models:
             result.append(dbus.Dictionary({
-                "name": dbus.String(m.get("name", "")),
-                "path": dbus.String(m.get("path", "")),
-                "type": dbus.String(m.get("type", "gguf")),
-                "description": dbus.String(m.get("description", "")),
-                "active": dbus.Boolean(m.get("name") == self._model_name),
-            }, signature="sv"))
-
-        # Include OpenRouter if configured
-        openrouter = registry.get("models", {}).get("openrouter", {})
-        if openrouter.get("enabled"):
-            result.append(dbus.Dictionary({
-                "name": dbus.String(openrouter.get("default_model", "openrouter")),
-                "path": dbus.String("https://openrouter.ai/api/v1"),
-                "type": dbus.String("openrouter"),
-                "description": dbus.String("Cloud inference via OpenRouter API"),
-                "active": dbus.Boolean(self._backend == "openrouter"),
+                "name": dbus.String(m["name"]),
+                "path": dbus.String(m["path"]),
+                "type": dbus.String(m["type"]),
+                "description": dbus.String(m["description"]),
+                "active": dbus.Boolean(m["active"]),
             }, signature="sv"))
 
         return dbus.Array(result, signature="a{sv}")
@@ -244,14 +380,13 @@ class AIDaemonService(dbus.service.Object):
     def QueryStreaming(self, question: str) -> None:
         """Start streaming query — emits ResponseChunk signals.
 
-        Step 7 implementation will:
-        1. Run inference in a background thread
-        2. Emit ResponseChunk(chunk) for each generated token
-        3. Emit ResponseChunk("") as end-of-stream sentinel
+        Routes through MasterAgent. Emits full response as single chunk
+        for now. Step 7 will replace with token-by-token streaming from
+        the Plasmoid.
         """
         log.info("QueryStreaming received: %s", question[:80])
 
-        if self._engine is None:
+        if self._master_agent is None and self._backend_manager is None:
             self.ResponseChunk(json.dumps({
                 "error": "Engine not loaded",
                 "message": "The AI daemon is starting up.",
@@ -261,10 +396,17 @@ class AIDaemonService(dbus.service.Object):
 
         def _stream():
             try:
-                # Step 7: replace with actual token-by-token streaming
-                # For now, generate full response and emit as single chunk
-                response = self._engine.generate(question)
-                self.ResponseChunk(response)
+                if self._master_agent is not None:
+                    log.info("Streaming via MasterAgent (backend=%s)", self._backend)
+                    result = self._master_agent.route(question)
+                    self.ResponseChunk(result.response)
+                elif self._backend_manager is not None:
+                    log.info("Streaming via backend directly (backend=%s)",
+                             self._backend_manager.active.backend_type)
+                    response = self._backend_manager.active.infer(
+                        _GENERAL_SYSTEM_PROMPT, question
+                    )
+                    self.ResponseChunk(response)
             except Exception as e:
                 log.error("Streaming query failed: %s", e)
                 self.ResponseChunk(json.dumps({"error": str(e)}))
@@ -288,6 +430,31 @@ class AIDaemonService(dbus.service.Object):
 
     # ── Internal helpers ─────────────────────────────────────────────────────
 
+    def _update_inference_stats(self, elapsed_ms: int) -> None:
+        """Capture token counts from the active backend after inference."""
+        prompt_tokens = 0
+        completion_tokens = 0
+
+        if self._backend_manager is not None:
+            active = self._backend_manager.active
+            if hasattr(active, 'engine') and active.engine is not None:
+                # LocalBackend — llama.cpp tracks completion tokens
+                completion_tokens = getattr(
+                    active.engine, 'last_completion_tokens', 0)
+            elif hasattr(active, 'client'):
+                # OpenRouterBackend — API returns both counts
+                client = active.client
+                prompt_tokens = getattr(client, 'last_prompt_tokens', 0)
+                completion_tokens = getattr(client, 'last_completion_tokens', 0)
+        elif self._engine is not None:
+            completion_tokens = self._engine.last_completion_tokens
+
+        self._last_inference = {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "elapsed_ms": elapsed_ms,
+        }
+
     def _build_status(self) -> dbus.Dictionary:
         """Build status dict for GetStatus/StatusChanged."""
         uptime = int(time.time() - self._start_time)
@@ -306,6 +473,12 @@ class AIDaemonService(dbus.service.Object):
             "version": dbus.String(DAEMON_VERSION),
         }, signature="sv")
 
+    def _build_status_with_warning(self, warning: str) -> dbus.Dictionary:
+        """Build status dict with a warning message included."""
+        status = self._build_status()
+        status["warning"] = dbus.String(warning)
+        return status
+
     @staticmethod
     def _get_vram_usage() -> tuple[int, int]:
         """Query nvidia-smi for VRAM usage. Returns (used_mb, free_mb)."""
@@ -318,8 +491,10 @@ class AIDaemonService(dbus.service.Object):
             )
             if result.returncode == 0:
                 parts = result.stdout.strip().split(",")
-                return int(parts[0].strip()), int(parts[1].strip())
-        except (subprocess.TimeoutExpired, FileNotFoundError, ValueError):
+                if len(parts) >= 2:
+                    return int(parts[0].strip()), int(parts[1].strip())
+        except (subprocess.TimeoutExpired, FileNotFoundError, ValueError,
+                IndexError):
             pass
         return 0, 0
 
@@ -371,6 +546,7 @@ def run_daemon() -> None:
                     engine,
                     model_name=Path(model_path).stem,
                     backend=backend,
+                    config=config,
                 )
             except Exception as e:
                 log.error("Failed to load model: %s", e)

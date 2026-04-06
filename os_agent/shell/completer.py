@@ -10,8 +10,8 @@ from __future__ import annotations
 from prompt_toolkit.completion import WordCompleter
 
 META_COMMANDS = [
-    "/chatbot", "/terminal", "/ai", "/history", "/memory", "/agents",
-    "/clear", "/help", "/exit", "/quit",
+    "/chatbot", "/terminal", "/ai", "/status", "/history", "/memory",
+    "/agents", "/clear", "/help", "/exit", "/quit",
 ]
 
 COMMON_COMMANDS = [
