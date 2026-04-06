@@ -24,3 +24,11 @@ finetuning/data/output/
 finetuning/q4_k_m-deploy/qwen3.5-4b-os-q4km.gguf
 
 os_build/live-image-amd64.files
+
+# live-build artifacts (generated during ISO build inside Docker)
+os_build/chroot/
+os_build/binary/
+os_build/cache/
+os_build/build.log
+os_build/output/
+os_build/*.iso

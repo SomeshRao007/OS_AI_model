@@ -1,0 +1,16 @@
+{
+    "KPlugin": {
+        "Id": "org.aios.assistant",
+        "Name": "AI Assistant",
+        "Description": "AI-powered system assistant — chat with your OS",
+        "Icon": "system-help",
+        "Category": "Utilities",
+        "Version": "0.1.0",
+        "Authors": [
+            { "Name": "AIOS Project" }
+        ],
+        "Website": "https://github.com/SomeshRao007/OS_AI_model"
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+"""Panel bridge — thin D-Bus wrapper for the AI assistant Plasmoid.
+
+Called by the Plasmoid's QML via PlasmaCore.DataSource { engine: "executable" }.
+Each invocation is a short-lived process that makes one D-Bus call and prints
+the result to stdout. The Plasmoid parses the output.
+
+Usage:
+    aios-panel-bridge status              -> JSON status dict
+    aios-panel-bridge query "question"    -> response text + stats JSON on last line
+    aios-panel-bridge models              -> JSON array of available models
+    aios-panel-bridge switch "model"      -> "ok" or "error: reason"
+    aios-panel-bridge exec "command"      -> command output
+"""
+
+import json
+import subprocess
+import sys
+import time
+
+import dbus
+
+BUS_NAME = "org.aios.Daemon"
+OBJ_PATH = "/org/aios/Daemon"
+IFACE = "org.aios.Daemon"
+
+GENERAL_PROMPT = (
+    "You are an AI assistant built into a Linux-based operating system. "
+    "You help users with system administration, file management, networking, "
+    "package management, process management, and general Linux questions. "
+    "Respond with one correct command in a bash code block followed by a "
+    "one-line explanation. For conceptual questions, explain in 2-4 sentences "
+    "with NO code blocks. If the request is ambiguous, ask one clarifying question."
+)
+
+
+def get_daemon():
+    """Get the D-Bus proxy for the AI daemon."""
+    bus = dbus.SessionBus()
+    proxy = bus.get_object(BUS_NAME, OBJ_PATH)
+    return dbus.Interface(proxy, IFACE)
+
+
+def cmd_status():
+    """Print daemon status as JSON."""
+    try:
+        daemon = get_daemon()
+        status = daemon.GetStatus()
+        result = {k: str(v) for k, v in status.items()}
+
+        try:
+            info = daemon.GetLastInferenceInfo()
+            result["last_prompt_tokens"] = str(info.get("prompt_tokens", 0))
+            result["last_completion_tokens"] = str(info.get("completion_tokens", 0))
+            result["last_elapsed_ms"] = str(info.get("elapsed_ms", 0))
+        except dbus.exceptions.DBusException:
+            pass
+
+        print(json.dumps(result))
+    except dbus.exceptions.DBusException:
+        print(json.dumps({"backend": "offline", "model": "none"}))
+
+
+def cmd_query(question):
+    """Query the AI and print response + stats."""
+    try:
+        daemon = get_daemon()
+        t0 = time.time()
+        response = daemon.Infer(GENERAL_PROMPT, question)
+        elapsed = time.time() - t0
+
+        stats = {"elapsed_s": round(elapsed, 2)}
+        try:
+            info = daemon.GetLastInferenceInfo()
+            stats["prompt_tokens"] = int(info.get("prompt_tokens", 0))
+            stats["completion_tokens"] = int(info.get("completion_tokens", 0))
+            stats["elapsed_ms"] = int(info.get("elapsed_ms", 0))
+            if stats["completion_tokens"] > 0 and elapsed > 0:
+                stats["tok_per_s"] = round(stats["completion_tokens"] / elapsed, 1)
+        except dbus.exceptions.DBusException:
+            pass
+
+        print(response)
+        print("---STATS---")
+        print(json.dumps(stats))
+
+    except dbus.exceptions.DBusException as e:
+        print("Error: AI daemon unavailable")
+        print("---STATS---")
+        print(json.dumps({"error": True}))
+
+
+def cmd_models():
+    """List available models as JSON array."""
+    try:
+        daemon = get_daemon()
+        models = daemon.ListModels()
+        result = []
+        for m in models:
+            result.append({k: str(v) for k, v in m.items()})
+        print(json.dumps(result))
+    except dbus.exceptions.DBusException:
+        print(json.dumps([]))
+
+
+def cmd_switch(model_name):
+    """Switch model and print result."""
+    try:
+        daemon = get_daemon()
+        success = daemon.SwitchModel(model_name)
+        if success:
+            print("ok")
+        else:
+            print("error: switch failed")
+    except dbus.exceptions.DBusException as e:
+        print("error: daemon unavailable")
+
+
+def cmd_exec(command):
+    """Execute a shell command and print output. Used by Plasmoid Run button."""
+    try:
+        result = subprocess.run(
+            ["/bin/bash", "-c", command],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.stdout:
+            print(result.stdout, end="")
+        if result.stderr:
+            print(result.stderr, end="")
+        if result.returncode != 0:
+            print(f"\n(exit code: {result.returncode})")
+    except subprocess.TimeoutExpired:
+        print("Error: command timed out (30s limit)")
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: aios-panel-bridge <status|query|models|switch|exec> [args]",
+              file=sys.stderr)
+        sys.exit(1)
+
+    cmd = sys.argv[1]
+
+    if cmd == "status":
+        cmd_status()
+    elif cmd == "query" and len(sys.argv) >= 3:
+        cmd_query(sys.argv[2])
+    elif cmd == "models":
+        cmd_models()
+    elif cmd == "switch" and len(sys.argv) >= 3:
+        cmd_switch(sys.argv[2])
+    elif cmd == "exec" and len(sys.argv) >= 3:
+        cmd_exec(sys.argv[2])
+    else:
+        print(f"Unknown command: {cmd}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

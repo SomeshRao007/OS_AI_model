@@ -57,10 +57,28 @@ phonon4qt6-backend-vlc
 # ── Wayland integration ──────────────────────────────────────────────────────
 xdg-desktop-portal-kde
 
-# ── Applications (minimal set) ───────────────────────────────────────────────
+# ── Applications ─────────────────────────────────────────────────────────────
 konsole
 dolphin
 kde-spectacle
+firefox-esr
 
 # ── SDDM config ─────────────────────────────────────────────────────────────
 kde-config-sddm
+
+# ── Plasmoid support ────────────────────────────────────────────────────────
+# Provides the QML module org.kde.plasma.plasma5support (P5Support.DataSource
+# with executable engine) used by the AI assistant Plasmoid.
+qml6-module-org-kde-plasma-plasma5support
+
+# ── Basic CLI tools ─────────────────────────────────────────────────────────
+nano
+vim-tiny
+less
+htop
+curl
+wget
+tree
+unzip
+file
+man-db
