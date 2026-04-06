@@ -53,6 +53,17 @@ else
     echo "[aios-build]          ISO will boot without a default model."
 fi
 
+# Copy plasmoid source for installation by 0400-plasmoid.hook.chroot
+PLASMOID_SRC="/build/os_build/plasmoids/org.aios.assistant"
+PLASMOID_DEST="${DAEMON_DIR}/plasmoids/org.aios.assistant"
+if [ -d "$PLASMOID_SRC" ]; then
+    mkdir -p "$PLASMOID_DEST"
+    cp -r "$PLASMOID_SRC/"* "$PLASMOID_DEST/"
+    echo "[aios-build] Plasmoid staged: $(find "$PLASMOID_DEST" -type f | wc -l) files"
+else
+    echo "[aios-build] WARNING: No plasmoid source at $PLASMOID_SRC"
+fi
+
 echo "[aios-build] ── Step 2: Configure live-build ────────────────────────"
 # Runs auto/config which calls: lb config noauto <our flags>
 lb config

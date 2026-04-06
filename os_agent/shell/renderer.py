@@ -88,6 +88,7 @@ class Renderer:
             "  <title>/chatbot</title>   Switch to chatbot mode",
             "  <title>/terminal</title>  Switch to terminal (bash) mode",
             "  <title>/ai</title>        Switch to AI co-pilot mode",
+            "  <title>/status</title>    Show daemon status, model, and speed",
             "  <title>/history</title>   Show command history",
             "  <title>/memory</title>    Show agent memory stats",
             "  <title>/agents</title>    Show active agents",

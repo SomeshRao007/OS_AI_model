@@ -5,6 +5,7 @@ with manual ChatML formatting — NOT create_chat_completion(), which mangles
 <think> tags during auto-detection.
 """
 
+import logging
 import re
 import subprocess
 from pathlib import Path
@@ -12,6 +13,8 @@ from typing import Generator
 
 import yaml
 from llama_cpp import Llama
+
+log = logging.getLogger("ai-daemon.engine")
 
 # Project root: two levels up from os_agent/inference/engine.py
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -70,12 +73,47 @@ class InferenceEngine:
         self._last_completion_tokens = 0
 
     @property
+    def loaded(self) -> bool:
+        """True if the model is loaded and ready for inference."""
+        return self._model is not None
+
+    @property
     def last_completion_tokens(self) -> int:
         """Token count from the most recent create_completion() call."""
         return self._last_completion_tokens
 
+    def unload(self) -> None:
+        """Free the model from VRAM/RAM. Safe to call multiple times.
+
+        Steps beyond just close():
+        1. close() — frees C-side llama memory (llama_free)
+        2. del — drops Python reference so GC can collect
+        3. gc.collect() — force immediate collection of cyclic refs
+        4. malloc_trim — tell glibc to return freed pages to the OS
+           (without this, glibc keeps freed pages in its arena and the
+           process RSS stays high even though the memory is unused)
+        """
+        if self._model is not None:
+            import ctypes
+            import gc
+
+            self._model.close()
+            del self._model
+            self._model = None
+            gc.collect()
+
+            # Force glibc to release freed pages back to the OS
+            try:
+                ctypes.CDLL("libc.so.6").malloc_trim(0)
+            except (OSError, AttributeError):
+                pass  # Non-glibc systems (musl, macOS) — skip
+
+            log.info("Model unloaded from memory")
+
     def infer(self, system_prompt: str, user_message: str, max_tokens: int | None = None) -> str:
         """Run synchronous inference. Returns cleaned response text."""
+        if self._model is None:
+            raise RuntimeError("Model has been unloaded — cannot run inference")
         prompt = self._build_prompt(system_prompt, user_message)
 
         result = self._model.create_completion(
@@ -100,6 +138,8 @@ class InferenceEngine:
         Buffers the start of generation to detect and discard <think>...</think>
         blocks, then switches to pass-through for remaining tokens.
         """
+        if self._model is None:
+            raise RuntimeError("Model has been unloaded — cannot run inference")
         prompt = self._build_prompt(system_prompt, user_message)
 
         stream = self._model.create_completion(
@@ -227,8 +267,13 @@ class InferenceEngine:
         if result.returncode != 0:
             return {"used": 0, "total": 0, "free": 0}
 
-        parts = result.stdout.strip().split(", ")
-        return {"used": int(parts[0]), "total": int(parts[1]), "free": int(parts[2])}
+        try:
+            parts = result.stdout.strip().split(", ")
+            if len(parts) < 3:
+                return {"used": 0, "total": 0, "free": 0}
+            return {"used": int(parts[0]), "total": int(parts[1]), "free": int(parts[2])}
+        except (ValueError, IndexError):
+            return {"used": 0, "total": 0, "free": 0}
 
     def _build_prompt(self, system_prompt: str, user_message: str) -> str:
         """Format system + user message into ChatML template."""

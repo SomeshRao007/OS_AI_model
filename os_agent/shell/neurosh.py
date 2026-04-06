@@ -20,8 +20,8 @@ from prompt_toolkit import PromptSession, HTML
 from prompt_toolkit.completion import DynamicCompleter
 from prompt_toolkit.history import FileHistory
 
-from os_agent.inference.engine import InferenceEngine
 from os_agent.agents.master import MasterAgent
+from os_agent.ipc.daemon_client import DaemonEngine, daemon_is_running
 from os_agent.shell.completer import create_completer, COMMON_COMMANDS
 from os_agent.shell.context import EnvironmentContext
 from os_agent.shell.history import ShellHistory
@@ -72,9 +72,17 @@ class NeuroshShell:
         shell_cfg = config.get("shell", {})
 
         self._renderer = Renderer()
-        self._renderer.print_info("Loading AI model...")
 
-        self._engine = InferenceEngine(config)
+        if daemon_is_running():
+            self._renderer.print_info("Connecting to AI daemon...")
+            self._engine = DaemonEngine()
+            self._using_daemon = True
+        else:
+            self._renderer.print_info("No daemon running, loading AI model locally...")
+            from os_agent.inference.engine import InferenceEngine
+            self._engine = InferenceEngine(config)
+            self._using_daemon = False
+
         self._master = MasterAgent(self._engine, config)
 
         self._mode_mgr = ModeManager(
@@ -97,6 +105,15 @@ class NeuroshShell:
 
         vram = self._engine.get_vram_usage()
         self._renderer.print_welcome(vram)
+
+        # Show daemon status if connected via D-Bus
+        if self._using_daemon and hasattr(self._engine, 'get_status'):
+            status = self._engine.get_status()
+            if status.get("backend") != "offline":
+                self._renderer.print_info(
+                    f"Connected to daemon | Model: {status.get('model', '?')} | "
+                    f"Backend: {status.get('backend', '?').upper()}"
+                )
 
     def run(self) -> None:
         """Main REPL loop."""
@@ -465,6 +482,7 @@ class NeuroshShell:
             "/chatbot": self._cmd_chatbot,
             "/terminal": self._cmd_terminal,
             "/ai": self._cmd_ai,
+            "/status": self._cmd_status,
             "/history": self._cmd_history,
             "/memory": self._cmd_memory,
             "/agents": self._cmd_agents,
@@ -494,6 +512,44 @@ class NeuroshShell:
     def _cmd_ai(self) -> bool:
         self._mode_mgr.switch_to_ai()
         self._renderer.print_info("Switched to AI co-pilot mode.")
+        return False
+
+    def _cmd_status(self) -> bool:
+        """Show daemon status, model info, and last inference stats."""
+        if not self._using_daemon or not hasattr(self._engine, 'get_status'):
+            self._renderer.print_info("Running locally (no daemon connection)")
+            vram = self._engine.get_vram_usage()
+            if vram.get("total", 0) > 0:
+                self._renderer.print_info(
+                    f"  VRAM: {vram['used']}/{vram['total']} MB"
+                )
+            return False
+
+        status = self._engine.get_status()
+        lines = []
+        lines.append(f"  Model:   {status.get('model', 'unknown')}")
+        lines.append(f"  Backend: {status.get('backend', 'offline').upper()}")
+
+        vram_used = int(status.get("vram_used_mb", 0))
+        vram_free = int(status.get("vram_free_mb", 0))
+        if vram_used > 0:
+            lines.append(f"  VRAM:    {vram_used}/{vram_used + vram_free} MB")
+
+        uptime = int(status.get("uptime_seconds", 0))
+        if uptime > 0:
+            h, m = divmod(uptime // 60, 60)
+            lines.append(f"  Uptime:  {h}h {m}m" if h else f"  Uptime:  {m}m")
+
+        info = self._engine.get_last_inference_info()
+        pt = info.get("prompt_tokens", 0)
+        ct = info.get("completion_tokens", 0)
+        ms = info.get("elapsed_ms", 0)
+        if ct > 0:
+            tok_s = ct / (ms / 1000) if ms > 0 else 0
+            lines.append(f"  Last:    prompt={pt} completion={ct} "
+                         f"({tok_s:.1f} tok/s)")
+
+        self._renderer.print_meta_response("Daemon Status", "\n".join(lines))
         return False
 
     def _cmd_history(self) -> bool:
