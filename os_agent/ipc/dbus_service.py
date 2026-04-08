@@ -58,6 +58,7 @@ import json
 import logging
 import os
 import signal
+import threading
 import time
 from pathlib import Path
 from threading import Thread
@@ -68,6 +69,12 @@ import dbus.service
 from gi.repository import GLib
 
 import yaml
+
+from os_agent.settings import (
+    SETTINGS_PATH,
+    apply_to_daemon_config,
+    load_settings,
+)
 
 log = logging.getLogger("ai-daemon.dbus")
 
@@ -104,14 +111,20 @@ class AIDaemonService(dbus.service.Object):
         super().__init__(bus_name, DBUS_OBJECT_PATH)
         self._start_time = time.time()
         self._engine = None  # Set by connect_engine()
-        self._model_name = "qwen3.5-4b-os-q4km"
+        self._model_name = ""
         self._backend = "cpu"  # Updated when engine connects
         self._backend_manager = None  # Set by connect_engine()
         self._master_agent = None  # Set by connect_engine()
         self._config = {}  # Set by connect_engine()
+        self._settings = {}  # User settings.yaml (set by connect_engine)
         self._config_dir = Path(
             os.environ.get("AI_DAEMON_CONFIG", "/opt/ai-daemon/config/daemon.yaml")
         ).parent
+        # Lazy-load state machine
+        self._load_lock = threading.Lock()
+        self._loading_event = threading.Event()
+        self._loading_event.set()  # "not loading" by default
+        self._loading = False
         self._last_inference = {
             "prompt_tokens": 0,
             "completion_tokens": 0,
@@ -121,40 +134,125 @@ class AIDaemonService(dbus.service.Object):
         }
         log.info("D-Bus service registered at %s", DBUS_OBJECT_PATH)
 
-    def connect_engine(self, engine, model_name: str, backend: str,
-                       config: dict | None = None) -> None:
-        """Connect a live InferenceEngine instance (called from daemon startup).
+    @property
+    def _model_loaded(self) -> bool:
+        """True iff a LocalBackend is active AND its engine is loaded."""
+        if self._backend_manager is None:
+            return False
+        active = self._backend_manager.active
+        if active is None:
+            return False
+        # OpenRouter "loaded" = configured; local loaded = engine.loaded
+        from os_agent.inference.backend import LocalBackend
+        if isinstance(active, LocalBackend):
+            engine = active.engine
+            return engine is not None and getattr(engine, "loaded", False)
+        return True  # OpenRouter backend counts as "loaded"
 
-        Creates BackendManager (wrapping engine in LocalBackend) and
-        MasterAgent for full query routing.
+    @property
+    def _lazy_load_enabled(self) -> bool:
+        return bool(self._settings.get("model", {}).get("lazy_load", True))
+
+    def connect_engine(self, engine, model_name: str, backend: str,
+                       config: dict | None = None,
+                       settings: dict | None = None) -> None:
+        """Connect the daemon to its BackendManager.
+
+        If ``engine`` is None, the daemon starts in the not_loaded state
+        (lazy-load). A MasterAgent is created only when an engine is
+        actually resident — otherwise Query() / Infer() will trigger a
+        load-on-demand via ``_ensure_model_loaded``.
 
         Args:
-            engine: InferenceEngine instance (from os_agent.inference.engine)
-            model_name: Name of the loaded model
-            backend: "gpu", "cpu", or "openrouter"
-            config: daemon.yaml config dict
+            engine: InferenceEngine instance, or None for not_loaded start.
+            model_name: Name of the default local model (used for lazy-load).
+            backend: "gpu", "cpu", or "" if not loaded yet.
+            config: daemon.yaml config dict (with settings already merged).
+            settings: User settings dict (from os_agent.settings.load_settings).
         """
         self._engine = engine
         self._model_name = model_name
         self._backend = backend
         self._config = config or {}
+        self._settings = settings or load_settings()
 
         from os_agent.inference.backend import LocalBackend, BackendManager
         from os_agent.inference.model_registry import ModelRegistry
         from os_agent.agents.master import MasterAgent
 
-        local_backend = LocalBackend(engine)
         registry = ModelRegistry(self._config_dir)
+        initial_backend = LocalBackend(engine) if engine is not None else None
+        initial_name = model_name if engine is not None else ""
         self._backend_manager = BackendManager(
             config=self._config,
             registry=registry,
-            initial_backend=local_backend,
-            initial_model_name=model_name,
+            initial_backend=initial_backend,
+            initial_model_name=initial_name,
         )
-        self._master_agent = MasterAgent(engine, self._config)
+        if engine is not None:
+            self._master_agent = MasterAgent(engine, self._config)
+            log.info("Engine connected: model=%s, backend=%s", model_name, backend)
+        else:
+            self._master_agent = None
+            log.info("Daemon started in not_loaded state (lazy_load=%s, default=%s)",
+                     self._lazy_load_enabled, model_name)
 
-        log.info("Engine connected: model=%s, backend=%s", model_name, backend)
         self.StatusChanged(self._build_status())
+
+    # ── Lazy-load helpers ───────────────────────────────────────────────────
+
+    def _ensure_model_loaded(self) -> tuple[bool, str]:
+        """Ensure a backend is loaded. Called from Query()/Infer() threads.
+
+        Returns (ok, error). If another thread is already loading, blocks on
+        the event until it completes. If we are the first caller in a
+        not_loaded state, performs the load. If a backend is already active,
+        this is a no-op.
+        """
+        if self._backend_manager is None:
+            return False, "Backend manager not initialised"
+
+        # Fast path: already loaded
+        if self._backend_manager.active is not None and self._model_loaded:
+            return True, ""
+
+        # Acquire load lock — only one loader at a time
+        with self._load_lock:
+            # Re-check after acquiring lock — another thread may have loaded
+            if self._backend_manager.active is not None and self._model_loaded:
+                return True, ""
+
+            # We are the loader
+            target = self._model_name or self._settings.get(
+                "model", {}).get("default_local", "")
+            if not target:
+                return False, "No default model configured"
+
+            log.info("Lazy-load triggered for model: %s", target)
+            self._loading = True
+            self._loading_event.clear()
+            self.StatusChanged(self._build_status())
+            try:
+                ok, err = self._backend_manager.load_local(target)
+                if not ok:
+                    log.error("Lazy-load failed: %s", err)
+                    return False, err
+
+                # Rebuild MasterAgent with the new engine
+                from os_agent.inference.backend import LocalBackend
+                from os_agent.agents.master import MasterAgent
+                active = self._backend_manager.active
+                if isinstance(active, LocalBackend):
+                    self._engine = active.engine
+                    self._master_agent = MasterAgent(self._engine, self._config)
+                    self._backend = _detect_gpu_backend()
+                self._model_name = target
+                log.info("Lazy-load complete: %s", target)
+                return True, ""
+            finally:
+                self._loading = False
+                self._loading_event.set()
+                self.StatusChanged(self._build_status())
 
     # ── Methods ──────────────────────────────────────────────────────────────
 
@@ -170,7 +268,7 @@ class AIDaemonService(dbus.service.Object):
         """
         log.info("Query received: %s", question[:80])
 
-        if self._master_agent is None and self._backend_manager is None:
+        if self._backend_manager is None:
             reply_cb(json.dumps({
                 "error": "Engine not loaded",
                 "message": "The AI daemon is starting up. Please wait a moment.",
@@ -179,6 +277,16 @@ class AIDaemonService(dbus.service.Object):
 
         def _run():
             try:
+                # Lazy-load: if nothing is active, load the default model now.
+                if self._backend_manager.active is None or not self._model_loaded:
+                    ok, err = self._ensure_model_loaded()
+                    if not ok:
+                        reply_cb(json.dumps({
+                            "error": "Load failed",
+                            "message": err,
+                        }))
+                        return
+
                 t0 = time.time()
                 if self._master_agent is not None:
                     log.info("Query routing via MasterAgent (backend=%s)", self._backend)
@@ -228,6 +336,17 @@ class AIDaemonService(dbus.service.Object):
 
         def _run():
             try:
+                # Lazy-load: if nothing is active, load the default model now.
+                if (self._backend_manager is not None
+                        and (self._backend_manager.active is None
+                             or not self._model_loaded)):
+                    ok, err = self._ensure_model_loaded()
+                    if not ok:
+                        reply_cb(json.dumps({
+                            "error": "Load failed",
+                            "message": err,
+                        }))
+                        return
                 t0 = time.time()
                 if self._backend_manager is not None:
                     log.info("Infer via backend (type=%s)",
@@ -340,13 +459,17 @@ class AIDaemonService(dbus.service.Object):
             return False
 
         self._model_name = model_name
-        backend = self._backend_manager.active
-        self._backend = backend.backend_type
-        self._engine = backend.engine  # type: ignore[attr-defined]
-
-        # Rebuild MasterAgent with the new engine
-        from os_agent.agents.master import MasterAgent
-        self._master_agent = MasterAgent(self._engine, self._config)
+        active = self._backend_manager.active
+        if active is None:
+            log.error("Switch reported success but active is None")
+            return False
+        self._backend = active.backend_type
+        from os_agent.inference.backend import LocalBackend
+        if isinstance(active, LocalBackend):
+            self._engine = active.engine
+            # Rebuild MasterAgent with the new engine
+            from os_agent.agents.master import MasterAgent
+            self._master_agent = MasterAgent(self._engine, self._config)
 
         log.info("Switched to local model: %s (backend=%s)", model_name, self._backend)
         self.StatusChanged(self._build_status())
@@ -382,6 +505,174 @@ class AIDaemonService(dbus.service.Object):
     @dbus.service.method(
         DBUS_INTERFACE,
         in_signature="s",
+        out_signature="b",
+    )
+    def LoadLocalModel(self, model_name: str) -> bool:
+        """Explicitly load a local GGUF into memory (Settings KCM use).
+
+        If model_name is empty, uses the configured default. Returns True
+        on success, False on failure (use GetStatus to read the error).
+        """
+        target = model_name or self._settings.get(
+            "model", {}).get("default_local", "") or self._model_name
+        if not target:
+            log.error("LoadLocalModel: no model name and no default configured")
+            return False
+        if self._backend_manager is None:
+            return False
+
+        with self._load_lock:
+            if self._loading:
+                # Another load is in flight — let it finish
+                pass
+            self._loading = True
+            self._loading_event.clear()
+            self.StatusChanged(self._build_status())
+            try:
+                ok, err = self._backend_manager.load_local(target)
+                if not ok:
+                    log.error("LoadLocalModel failed: %s", err)
+                    self.StatusChanged(self._build_status_with_warning(
+                        f"Load failed: {err}"))
+                    return False
+
+                from os_agent.inference.backend import LocalBackend
+                from os_agent.agents.master import MasterAgent
+                active = self._backend_manager.active
+                if isinstance(active, LocalBackend):
+                    self._engine = active.engine
+                    self._master_agent = MasterAgent(self._engine, self._config)
+                    self._backend = _detect_gpu_backend()
+                self._model_name = target
+                log.info("LoadLocalModel complete: %s", target)
+                return True
+            finally:
+                self._loading = False
+                self._loading_event.set()
+                self.StatusChanged(self._build_status())
+
+    @dbus.service.method(
+        DBUS_INTERFACE,
+        in_signature="",
+        out_signature="b",
+    )
+    def UnloadLocalModel(self) -> bool:
+        """Unload the currently resident backend and transition to not_loaded.
+
+        Frees VRAM/RAM. Next Query() will trigger a reload via the lazy-load
+        fast-path (if lazy_load is enabled) or require an explicit
+        LoadLocalModel call.
+        """
+        if self._backend_manager is None:
+            return False
+        ok, err = self._backend_manager.unload_current()
+        if not ok:
+            log.error("UnloadLocalModel failed: %s", err)
+            return False
+        self._engine = None
+        self._master_agent = None
+        self._backend = ""
+        self.StatusChanged(self._build_status())
+        return True
+
+    @dbus.service.method(
+        DBUS_INTERFACE,
+        in_signature="",
+        out_signature="b",
+    )
+    def ReloadSettings(self) -> bool:
+        """Re-read ~/.config/ai-daemon/settings.yaml and apply.
+
+        Hot-applies generation params (temperature, top_p, top_k,
+        repeat_penalty, max_tokens, seed) to the active engine without a
+        reload. Reload-required keys (n_ctx, n_gpu_layers) are stored in the
+        merged config and will take effect on the next model load.
+
+        Called by the Settings KCM after it writes settings.yaml.
+        """
+        try:
+            new_settings = load_settings()
+        except Exception as e:
+            log.error("ReloadSettings: load failed: %s", e)
+            return False
+
+        self._settings = new_settings
+        # Re-merge into the engine config so the next reload picks up
+        # n_ctx / n_gpu_layers.
+        base_config = _load_base_config()
+        self._config = apply_to_daemon_config(base_config, new_settings)
+        if self._backend_manager is not None:
+            self._backend_manager.update_config(self._config)
+            changed = self._backend_manager.apply_generation_params(
+                new_settings.get("generation", {}))
+            log.info("ReloadSettings: hot-applied %s", changed)
+        self.StatusChanged(self._build_status())
+        return True
+
+    @dbus.service.method(
+        DBUS_INTERFACE,
+        in_signature="s",
+        out_signature="b",
+    )
+    def SetOpenRouterKey(self, key: str) -> bool:
+        """Persist the OpenRouter API key to ~/.config/ai-daemon/secrets.yaml.
+
+        KCM calls this after storing the key in KWallet so the daemon has a
+        local copy to use at runtime (openrouter.py reads secrets.yaml).
+        File is written with mode 0600.
+
+        Pass an empty string to clear the key.
+        """
+        from os_agent.settings import SETTINGS_DIR
+        try:
+            SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
+            secrets_path = SETTINGS_DIR / "secrets.yaml"
+            tmp = secrets_path.with_suffix(".yaml.tmp")
+            with open(tmp, "w", encoding="utf-8") as f:
+                yaml.safe_dump({"openrouter_api_key": key}, f)
+            os.chmod(tmp, 0o600)
+            os.replace(tmp, secrets_path)
+            log.info("OpenRouter API key persisted (len=%d)", len(key))
+            return True
+        except OSError as e:
+            log.error("SetOpenRouterKey failed: %s", e)
+            return False
+
+    @dbus.service.method(
+        DBUS_INTERFACE,
+        in_signature="ss",
+        out_signature="(bs)",
+        async_callbacks=("reply_cb", "error_cb"),
+    )
+    def TestOpenRouterConnection(self, key: str, model_id: str,
+                                 reply_cb, error_cb) -> None:
+        """Non-destructive OpenRouter connection test.
+
+        Does NOT switch backends — used by the "Test Connection" button in
+        the Settings KCM. Runs in a background thread (network call).
+        """
+        def _test():
+            try:
+                from os_agent.inference.openrouter import OpenRouterClient
+                gen = self._settings.get("generation", {})
+                client = OpenRouterClient(
+                    api_key=key,
+                    model_id=model_id or "deepseek/deepseek-chat",
+                    temperature=gen.get("temperature", 0.5),
+                    max_tokens=gen.get("max_tokens", 64),
+                )
+                ok, err = client.test_connection()
+                client.close()
+                reply_cb((dbus.Boolean(ok), dbus.String(err or "")))
+            except Exception as e:
+                log.error("TestOpenRouterConnection failed: %s", e)
+                reply_cb((dbus.Boolean(False), dbus.String(str(e))))
+
+        Thread(target=_test, daemon=True).start()
+
+    @dbus.service.method(
+        DBUS_INTERFACE,
+        in_signature="s",
         out_signature="",
     )
     def QueryStreaming(self, question: str) -> None:
@@ -393,7 +684,7 @@ class AIDaemonService(dbus.service.Object):
         """
         log.info("QueryStreaming received: %s", question[:80])
 
-        if self._master_agent is None and self._backend_manager is None:
+        if self._backend_manager is None:
             self.ResponseChunk(json.dumps({
                 "error": "Engine not loaded",
                 "message": "The AI daemon is starting up.",
@@ -403,6 +694,12 @@ class AIDaemonService(dbus.service.Object):
 
         def _stream():
             try:
+                if self._backend_manager.active is None or not self._model_loaded:
+                    ok, err = self._ensure_model_loaded()
+                    if not ok:
+                        self.ResponseChunk(json.dumps({
+                            "error": "Load failed", "message": err}))
+                        return
                 if self._master_agent is not None:
                     log.info("Streaming via MasterAgent (backend=%s)", self._backend)
                     result = self._master_agent.route(question)
@@ -444,7 +741,7 @@ class AIDaemonService(dbus.service.Object):
         cost_usd = 0.0
         backend_type = self._backend
 
-        if self._backend_manager is not None:
+        if self._backend_manager is not None and self._backend_manager.active is not None:
             active = self._backend_manager.active
             backend_type = active.backend_type
             if hasattr(active, 'engine') and active.engine is not None:
@@ -476,14 +773,28 @@ class AIDaemonService(dbus.service.Object):
 
         vram_used = 0
         vram_free = 0
-        if self._backend == "gpu":
+        if self._backend == "gpu" and self._model_loaded:
             vram_used, vram_free = self._get_vram_usage()
 
+        # Report the effective backend. If nothing is loaded we still want
+        # the Plasmoid dot to reflect the *intended* backend so the user
+        # knows what will happen when they click send.
+        effective_backend = self._backend
+        if self._backend_manager is not None and self._backend_manager.active is not None:
+            effective_backend = self._backend_manager.active.backend_type
+        elif not effective_backend:
+            effective_backend = "cpu"
+
         return dbus.Dictionary({
-            "model": dbus.String(self._model_name),
-            "backend": dbus.String(self._backend),
+            "model": dbus.String(self._model_name or self._settings.get(
+                "model", {}).get("default_local", "")),
+            "backend": dbus.String(effective_backend),
             "vram_used_mb": dbus.UInt32(vram_used),
             "vram_free_mb": dbus.UInt32(vram_free),
+            "ram_used_mb": dbus.UInt32(_rss_mb()),
+            "model_loaded": dbus.Boolean(self._model_loaded),
+            "loading": dbus.Boolean(self._loading),
+            "lazy_load": dbus.Boolean(self._lazy_load_enabled),
             "uptime_seconds": dbus.UInt32(uptime),
             "version": dbus.String(DAEMON_VERSION),
         }, signature="sv")
@@ -514,6 +825,43 @@ class AIDaemonService(dbus.service.Object):
         return 0, 0
 
 
+def _rss_mb() -> int:
+    """Return the daemon process RSS in MB, or 0 if unavailable."""
+    try:
+        with open("/proc/self/status", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        return int(parts[1]) // 1024
+    except (OSError, ValueError):
+        pass
+    return 0
+
+
+def _detect_gpu_backend() -> str:
+    """Return 'gpu' if nvidia-smi responds, else 'cpu'."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["nvidia-smi"], capture_output=True, timeout=5,
+        )
+        return "gpu" if result.returncode == 0 else "cpu"
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return "cpu"
+
+
+def _load_base_config() -> dict:
+    """Load the read-only daemon.yaml baked into the ISO."""
+    config_path = os.environ.get(
+        "AI_DAEMON_CONFIG", "/opt/ai-daemon/config/daemon.yaml"
+    )
+    if not Path(config_path).exists():
+        return {}
+    with open(config_path, encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
+
 def run_daemon() -> None:
     """Start the D-Bus daemon main loop.
 
@@ -530,47 +878,55 @@ def run_daemon() -> None:
     bus_name = dbus.service.BusName(DBUS_BUS_NAME, bus)
     service = AIDaemonService(bus_name)
 
-    # Load the inference engine
-    config_path = os.environ.get(
-        "AI_DAEMON_CONFIG", "/opt/ai-daemon/config/daemon.yaml"
-    )
-    if Path(config_path).exists():
-        log.info("Loading config from %s", config_path)
-        with open(config_path) as f:
-            config = yaml.safe_load(f)
+    # Load base config + user settings, merge them, and decide whether to
+    # eagerly load the model or start in not_loaded state.
+    base_config = _load_base_config()
+    user_settings = load_settings()
+    merged_config = apply_to_daemon_config(base_config, user_settings)
 
-        model_path = config.get("model", {}).get("path", "")
-        if Path(model_path).exists():
-            log.info("Loading model: %s", model_path)
-            try:
-                from os_agent.inference.engine import InferenceEngine
-                engine = InferenceEngine(config)  # pass dict, not path string
-                n_gpu = config.get("model", {}).get("n_gpu_layers", -1)
-                backend = "gpu" if n_gpu != 0 else "cpu"
+    lazy_load = bool(user_settings.get("model", {}).get("lazy_load", True))
+    model_path = merged_config.get("model", {}).get("path", "")
+    default_name = user_settings.get("model", {}).get(
+        "default_local", Path(model_path).stem if model_path else "")
 
-                # Detect actual GPU availability
-                import subprocess
-                gpu_check = subprocess.run(
-                    ["nvidia-smi"], capture_output=True, timeout=5,
-                )
-                if gpu_check.returncode != 0:
-                    backend = "cpu"
-                    log.info("No NVIDIA GPU detected, using CPU fallback")
-
-                service.connect_engine(
-                    engine,
-                    model_name=Path(model_path).stem,
-                    backend=backend,
-                    config=config,
-                )
-            except Exception as e:
-                log.error("Failed to load model: %s", e)
-                log.info("Daemon running without model — queries will return errors")
-        else:
-            log.warning("Model file not found: %s", model_path)
-            log.info("Daemon running without model")
+    if lazy_load:
+        log.info("Lazy-load enabled — starting in not_loaded state "
+                 "(default=%s, settings=%s)", default_name, SETTINGS_PATH)
+        service.connect_engine(
+            engine=None,
+            model_name=default_name,
+            backend="",
+            config=merged_config,
+            settings=user_settings,
+        )
+    elif Path(model_path).exists():
+        log.info("Eager load: %s", model_path)
+        try:
+            from os_agent.inference.engine import InferenceEngine
+            engine = InferenceEngine(merged_config)
+            backend = _detect_gpu_backend()
+            if backend == "cpu":
+                log.info("No NVIDIA GPU detected, using CPU")
+            service.connect_engine(
+                engine,
+                model_name=default_name or Path(model_path).stem,
+                backend=backend,
+                config=merged_config,
+                settings=user_settings,
+            )
+        except Exception as e:
+            log.error("Failed to load model: %s", e)
+            log.info("Daemon falling back to not_loaded state")
+            service.connect_engine(
+                engine=None, model_name=default_name,
+                backend="", config=merged_config, settings=user_settings,
+            )
     else:
-        log.warning("Config not found: %s", config_path)
+        log.warning("Model file not found: %s — starting in not_loaded state", model_path)
+        service.connect_engine(
+            engine=None, model_name=default_name,
+            backend="", config=merged_config, settings=user_settings,
+        )
 
     # Handle graceful shutdown
     loop = GLib.MainLoop()

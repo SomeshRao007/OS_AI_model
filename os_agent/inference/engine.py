@@ -69,8 +69,37 @@ class InferenceEngine:
         self._top_k = gen_cfg.get("top_k", 20)
         self._repeat_penalty = gen_cfg.get("repeat_penalty", 1.0)
         self._max_tokens = gen_cfg.get("max_tokens", 1024)
+        self._seed = gen_cfg.get("seed", -1)
         self._stop_tokens = gen_cfg.get("stop_tokens", ["<|im_end|>", "<|endoftext|>"])
         self._last_completion_tokens = 0
+
+    # Keys that cannot be hot-applied — they require rebuilding the llama_cpp
+    # context. KCM shows a "reload required" banner for these.
+    RELOAD_REQUIRED_KEYS = ("n_ctx", "n_gpu_layers")
+
+    # Keys that can be updated in place without touching llama_cpp.
+    HOT_APPLY_KEYS = (
+        "temperature", "top_p", "top_k", "repeat_penalty", "max_tokens", "seed",
+    )
+
+    def update_generation_params(self, params: dict) -> dict:
+        """Apply new sampling parameters in place. Returns dict of keys actually changed.
+
+        Unknown keys and reload-required keys are ignored (caller must trigger
+        a full reload for those). Safe to call while the engine is loaded.
+        """
+        changed = {}
+        for key in self.HOT_APPLY_KEYS:
+            if key not in params:
+                continue
+            value = params[key]
+            attr = f"_{key}"
+            if getattr(self, attr, None) != value:
+                setattr(self, attr, value)
+                changed[key] = value
+        if changed:
+            log.info("Hot-applied generation params: %s", changed)
+        return changed
 
     @property
     def loaded(self) -> bool:
@@ -123,6 +152,7 @@ class InferenceEngine:
             top_k=self._top_k,
             repeat_penalty=self._repeat_penalty,
             max_tokens=max_tokens or self._max_tokens,
+            seed=self._seed if self._seed is not None and self._seed >= 0 else None,
             stop=self._stop_tokens,
         )
 
@@ -149,6 +179,7 @@ class InferenceEngine:
             top_k=self._top_k,
             repeat_penalty=self._repeat_penalty,
             max_tokens=max_tokens or self._max_tokens,
+            seed=self._seed if self._seed is not None and self._seed >= 0 else None,
             stop=self._stop_tokens,
             stream=True,
         )

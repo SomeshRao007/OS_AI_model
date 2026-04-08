@@ -127,72 +127,133 @@ class BackendManager:
     D-Bus SwitchModel calls don't race.
     """
 
-    def __init__(self, config: dict, registry, initial_backend: InferenceBackend,
+    def __init__(self, config: dict, registry,
+                 initial_backend: InferenceBackend | None,
                  initial_model_name: str) -> None:
         """
         Args:
             config: daemon.yaml config dict (model + generation sections).
             registry: ModelRegistry instance for model lookup/validation.
-            initial_backend: The backend loaded at daemon startup.
-            initial_model_name: Name of the initially loaded model.
+            initial_backend: The backend loaded at daemon startup, or None
+                if the daemon started in lazy-load (not_loaded) state.
+            initial_model_name: Name of the initially loaded model, or "" if
+                not_loaded.
         """
         self._config = config
         self._registry = registry
-        self._active: InferenceBackend = initial_backend
+        self._active: InferenceBackend | None = initial_backend
         self._active_model_name = initial_model_name
         self._lock = threading.Lock()
 
     @property
-    def active(self) -> InferenceBackend:
-        """Return the currently active backend."""
+    def active(self) -> InferenceBackend | None:
+        """Return the currently active backend (or None if not loaded)."""
         return self._active
 
     @property
     def active_model_name(self) -> str:
-        """Name of the currently loaded model."""
+        """Name of the currently loaded model, or '' if not loaded."""
         return self._active_model_name
+
+    def update_config(self, config: dict) -> None:
+        """Replace the stored config. Used when settings.yaml is reloaded."""
+        self._config = config
+
+    def _resolve_local_model(self, model_name: str) -> tuple[bool, str, str]:
+        """Validate a local model and return (ok, model_path, error)."""
+        model_info = self._registry.get_model(model_name)
+        if model_info is None:
+            return False, "", f"Model '{model_name}' not found in registry"
+        if model_info.type != "gguf":
+            return False, "", f"Model '{model_name}' is not a local GGUF model"
+        model_path = model_info.path
+        if not Path(model_path).exists():
+            return False, "", f"Model file not found: {model_path}"
+        if not self._registry.validate_gguf(model_path):
+            return False, "", f"Invalid GGUF file: {model_path}"
+        return True, model_path, ""
+
+    def _build_engine_config(self, model_path: str) -> dict:
+        """Shallow-merge a fresh model path into the stored config."""
+        new_config = dict(self._config)
+        new_model_cfg = dict(new_config.get("model", {}))
+        new_model_cfg["path"] = model_path
+        new_config["model"] = new_model_cfg
+        return new_config
+
+    def load_local(self, model_name: str) -> tuple[bool, str]:
+        """Load a local GGUF model from the not_loaded state (or replace
+        the current backend if one is already active).
+
+        Unlike switch_to_local, this tolerates `_active is None` so it is
+        the entry point for the lazy-load fast-path.
+
+        Returns (success, error_message).
+        """
+        with self._lock:
+            ok, model_path, err = self._resolve_local_model(model_name)
+            if not ok:
+                return False, err
+
+            from os_agent.inference.engine import InferenceEngine
+            try:
+                new_engine = InferenceEngine(self._build_engine_config(model_path))
+            except Exception as e:
+                return False, f"Failed to load model: {e}"
+
+            # New engine loaded — now unload old if any
+            if self._active is not None:
+                try:
+                    self._active.unload()
+                except Exception as e:
+                    log.warning("Unload of previous backend failed: %s", e)
+
+            self._active = LocalBackend(new_engine)
+            self._active_model_name = model_name
+            log.info("Loaded local model: %s", model_name)
+            return True, ""
+
+    def unload_current(self) -> tuple[bool, str]:
+        """Unload whatever is active and transition to not_loaded.
+
+        Safe to call when nothing is loaded — returns success in that case.
+        Returns (success, error_message).
+        """
+        with self._lock:
+            if self._active is None:
+                return True, ""
+            try:
+                self._active.unload()
+            except Exception as e:
+                log.error("Unload failed: %s", e)
+                return False, str(e)
+            self._active = None
+            self._active_model_name = ""
+            log.info("Backend unloaded — daemon now in not_loaded state")
+            return True, ""
+
+    def apply_generation_params(self, params: dict) -> dict:
+        """Hot-apply generation params to the active backend.
+
+        No-op (returns {}) for OpenRouter (params are sent per-call) and
+        for the not_loaded state.
+        """
+        if self._active is None:
+            return {}
+        if not isinstance(self._active, LocalBackend):
+            return {}
+        engine = self._active.engine
+        if engine is None or not getattr(engine, "loaded", False):
+            return {}
+        return engine.update_generation_params(params)
 
     def switch_to_local(self, model_name: str) -> tuple[bool, str]:
         """Switch to a local GGUF model.
 
-        Validates the model, unloads the current backend, loads the new one.
-        Returns (success, error_message).
+        Thin wrapper over load_local — kept for API compatibility with Step 6
+        callers (dbus_service._switch_to_local).
         """
-        with self._lock:
-            model_info = self._registry.get_model(model_name)
-            if model_info is None:
-                return False, f"Model '{model_name}' not found in registry"
-
-            if model_info.type != "gguf":
-                return False, f"Model '{model_name}' is not a local GGUF model"
-
-            model_path = model_info.path
-            if not Path(model_path).exists():
-                return False, f"Model file not found: {model_path}"
-
-            if not self._registry.validate_gguf(model_path):
-                return False, f"Invalid GGUF file: {model_path}"
-
-            # Build config for the new model
-            new_config = dict(self._config)
-            new_model_cfg = dict(new_config.get("model", {}))
-            new_model_cfg["path"] = model_path
-            new_config["model"] = new_model_cfg
-
-            # Load new engine before unloading old — if load fails, we keep current
-            from os_agent.inference.engine import InferenceEngine
-            try:
-                new_engine = InferenceEngine(new_config)
-            except Exception as e:
-                return False, f"Failed to load model: {e}"
-
-            # New engine loaded successfully — now unload old
-            self._active.unload()
-
-            self._active = LocalBackend(new_engine)
-            self._active_model_name = model_name
-            log.info("Switched to local model: %s", model_name)
-            return True, ""
+        return self.load_local(model_name)
 
     def switch_to_openrouter(self, api_key: str, model_id: str) -> tuple[bool, str]:
         """Switch to OpenRouter cloud inference.
@@ -219,8 +280,12 @@ class BackendManager:
                 log.warning("OpenRouter connection test failed: %s", error)
                 return False, error
 
-            # Test passed — unload local backend and switch
-            self._active.unload()
+            # Test passed — unload local backend (if any) and switch
+            if self._active is not None:
+                try:
+                    self._active.unload()
+                except Exception as e:
+                    log.warning("Unload of previous backend failed: %s", e)
             self._active = OpenRouterBackend(client)
             self._active_model_name = f"openrouter:{model_id}"
             log.info("Switched to OpenRouter model: %s", model_id)
@@ -246,7 +311,8 @@ class BackendManager:
 
         # Add OpenRouter entry if configured
         or_config = self._registry.get_openrouter_config()
-        if or_config.get("enabled") or self._active.backend_type == "openrouter":
+        active_type = self._active.backend_type if self._active is not None else ""
+        if or_config.get("enabled") or active_type == "openrouter":
             or_model = or_config.get("default_model", "deepseek/deepseek-chat")
             or_name = f"openrouter:{or_model}"
             result.append({
@@ -254,7 +320,7 @@ class BackendManager:
                 "path": "https://openrouter.ai/api/v1",
                 "type": "openrouter",
                 "description": f"Cloud inference via OpenRouter ({or_model})",
-                "active": self._active.backend_type == "openrouter",
+                "active": active_type == "openrouter",
             })
 
         return result

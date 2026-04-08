@@ -42,32 +42,60 @@ def get_daemon():
 
 
 def cmd_status():
-    """Print daemon status as JSON."""
+    """Print daemon status as JSON.
+
+    Includes the new Step 9 fields (model_loaded, loading, ram_used_mb,
+    lazy_load) so the Plasmoid can distinguish 'not loaded' from 'loading'
+    from 'ready'.
+    """
     try:
         daemon = get_daemon()
         status = daemon.GetStatus()
-        result = {k: str(v) for k, v in status.items()}
+        # Preserve booleans and integers — don't stringify blindly, the QML
+        # side needs real types to make status-dot decisions.
+        result = {}
+        for k, v in status.items():
+            key = str(k)
+            if isinstance(v, dbus.Boolean):
+                result[key] = bool(v)
+            elif isinstance(v, (dbus.UInt32, dbus.Int32, dbus.Int64, dbus.UInt64)):
+                result[key] = int(v)
+            else:
+                result[key] = str(v)
 
         try:
             info = daemon.GetLastInferenceInfo()
-            result["last_prompt_tokens"] = str(info.get("prompt_tokens", 0))
-            result["last_completion_tokens"] = str(info.get("completion_tokens", 0))
-            result["last_elapsed_ms"] = str(info.get("elapsed_ms", 0))
+            result["last_prompt_tokens"] = int(info.get("prompt_tokens", 0))
+            result["last_completion_tokens"] = int(info.get("completion_tokens", 0))
+            result["last_elapsed_ms"] = int(info.get("elapsed_ms", 0))
         except dbus.exceptions.DBusException:
             pass
 
         print(json.dumps(result))
     except dbus.exceptions.DBusException:
-        print(json.dumps({"backend": "offline", "model": "none"}))
+        print(json.dumps({
+            "backend": "offline",
+            "model": "none",
+            "model_loaded": False,
+            "loading": False,
+        }))
 
 
 def cmd_query(question):
     """Query the AI and print response + stats."""
     try:
         daemon = get_daemon()
+        # Long timeout: the first call in a lazy-loaded daemon must cover
+        # both the model load (~3-20s GPU, longer on CPU) and the inference
+        # itself. 600s is a generous upper bound.
+        try:
+            status = daemon.GetStatus()
+            cold = not bool(status.get("model_loaded", False))
+        except dbus.exceptions.DBusException:
+            cold = True
+        timeout = 600 if cold else 300
         t0 = time.time()
-        # Long timeout: local CPU inference can exceed the 25s dbus default.
-        response = daemon.Infer(GENERAL_PROMPT, question, timeout=300)
+        response = daemon.Infer(GENERAL_PROMPT, question, timeout=timeout)
         elapsed = time.time() - t0
 
         stats = {"elapsed_s": round(elapsed, 2)}

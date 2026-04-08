@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+"""Settings write helper for the AI Assistant KCM.
+
+The KCM (QML-only) shells out to this script for every operation that
+would otherwise require python-dbus, KWallet bindings, or direct file
+I/O from QML. Each invocation is a short-lived process that prints
+either "ok" or "error: <reason>" to stdout so the KCM's DaemonBridge
+can pattern-match the result.
+
+Subcommands:
+    save '<json>'                 -- overwrite ~/.config/ai-daemon/settings.yaml
+                                     (deep-merged onto defaults)
+    load <model>                  -- call org.aios.Daemon.LoadLocalModel
+    unload                        -- call org.aios.Daemon.UnloadLocalModel
+    reload                        -- call org.aios.Daemon.ReloadSettings
+    set-key <key>                 -- store OpenRouter key in KWallet AND
+                                     call SetOpenRouterKey on the daemon
+    test-openrouter <key> <model> -- call TestOpenRouterConnection
+    autostart enable|disable      -- systemctl --user enable/disable
+                                     ai-daemon.service
+    get-key                       -- read OpenRouter key from KWallet
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+BUS_NAME = "org.aios.Daemon"
+OBJ_PATH = "/org/aios/Daemon"
+IFACE = "org.aios.Daemon"
+KWALLET_FOLDER = "AI-OS"
+KWALLET_ENTRY = "openrouter_api_key"
+
+
+def _ok(msg: str = "ok") -> None:
+    print(msg)
+    sys.exit(0)
+
+
+def _err(msg: str) -> None:
+    print("error: " + msg)
+    sys.exit(1)
+
+
+def _get_daemon():
+    import dbus
+    bus = dbus.SessionBus()
+    proxy = bus.get_object(BUS_NAME, OBJ_PATH)
+    return dbus.Interface(proxy, IFACE)
+
+
+# ── save settings.yaml ──────────────────────────────────────────────────────
+
+def cmd_save(payload: str) -> None:
+    """Merge JSON payload onto current settings and write atomically."""
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError as e:
+        _err(f"invalid json: {e}")
+
+    try:
+        # Import lazily — avoids paying the cost on unrelated subcommands
+        sys.path.insert(0, "/opt/ai-daemon")
+        from os_agent.settings import load_settings, save_settings
+        merged = load_settings()
+        _deep_merge_into(merged, data)
+        save_settings(merged)
+    except Exception as e:
+        _err(str(e))
+    _ok()
+
+
+def _deep_merge_into(base: dict, overlay: dict) -> None:
+    for k, v in (overlay or {}).items():
+        if isinstance(v, dict) and isinstance(base.get(k), dict):
+            _deep_merge_into(base[k], v)
+        else:
+            base[k] = v
+
+
+# ── D-Bus passthroughs ──────────────────────────────────────────────────────
+
+def cmd_load(model_name: str) -> None:
+    try:
+        daemon = _get_daemon()
+        ok = bool(daemon.LoadLocalModel(model_name))
+    except Exception as e:
+        _err(f"daemon unreachable: {e}")
+    _ok() if ok else _err("load failed")
+
+
+def cmd_unload() -> None:
+    try:
+        daemon = _get_daemon()
+        ok = bool(daemon.UnloadLocalModel())
+    except Exception as e:
+        _err(f"daemon unreachable: {e}")
+    _ok() if ok else _err("unload failed")
+
+
+def cmd_reload() -> None:
+    try:
+        daemon = _get_daemon()
+        ok = bool(daemon.ReloadSettings())
+    except Exception as e:
+        _err(f"daemon unreachable: {e}")
+    _ok() if ok else _err("reload failed")
+
+
+def cmd_test_openrouter(key: str, model_id: str) -> None:
+    try:
+        daemon = _get_daemon()
+        # Uses long timeout — network latency plus validation.
+        result = daemon.TestOpenRouterConnection(key, model_id, timeout=30)
+        ok = bool(result[0])
+        msg = str(result[1])
+    except Exception as e:
+        _err(f"daemon unreachable: {e}")
+    if ok:
+        _ok()
+    else:
+        _err(msg or "connection failed")
+
+
+# ── KWallet + secrets.yaml ──────────────────────────────────────────────────
+
+def cmd_set_key(key: str) -> None:
+    """Store the OpenRouter key in KWallet AND push to the daemon."""
+    # KWallet first — best-effort. kwallet-query exits 0 on success.
+    try:
+        subprocess.run(
+            ["kwallet-query", "-w", KWALLET_ENTRY, "-f", KWALLET_FOLDER,
+             "kdewallet"],
+            input=key, text=True, capture_output=True, timeout=10,
+            check=False,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        # kwallet-query missing or hung — don't block the operation, the
+        # daemon-side secrets.yaml is the authoritative runtime store.
+        pass
+
+    # Daemon-side persistence (secrets.yaml). If the daemon is stopped we
+    # still write the file ourselves as a fallback.
+    daemon_ok = False
+    try:
+        daemon = _get_daemon()
+        daemon_ok = bool(daemon.SetOpenRouterKey(key))
+    except Exception:
+        daemon_ok = False
+
+    if not daemon_ok:
+        # Daemon unreachable — write secrets.yaml directly
+        try:
+            import yaml
+            settings_dir = Path(os.path.expanduser("~/.config/ai-daemon"))
+            settings_dir.mkdir(parents=True, exist_ok=True)
+            secrets = settings_dir / "secrets.yaml"
+            tmp = secrets.with_suffix(".yaml.tmp")
+            with open(tmp, "w", encoding="utf-8") as f:
+                yaml.safe_dump({"openrouter_api_key": key}, f)
+            os.chmod(tmp, 0o600)
+            os.replace(tmp, secrets)
+        except Exception as e:
+            _err(f"could not persist key: {e}")
+    _ok()
+
+
+def cmd_get_key() -> None:
+    """Read key from KWallet if present, else fall back to secrets.yaml."""
+    try:
+        result = subprocess.run(
+            ["kwallet-query", "-r", KWALLET_ENTRY, "-f", KWALLET_FOLDER,
+             "kdewallet"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            print(result.stdout.strip())
+            return
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    # Fallback
+    try:
+        import yaml
+        secrets = Path(os.path.expanduser("~/.config/ai-daemon/secrets.yaml"))
+        if secrets.exists():
+            with open(secrets, encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+            if isinstance(data, dict):
+                print(data.get("openrouter_api_key", ""))
+                return
+            if isinstance(data, str):
+                print(data)
+                return
+    except Exception:
+        pass
+    print("")  # empty = no key stored
+
+
+# ── systemd --user autostart ────────────────────────────────────────────────
+
+def cmd_autostart(action: str) -> None:
+    if action not in ("enable", "disable"):
+        _err("autostart: expected 'enable' or 'disable'")
+    try:
+        result = subprocess.run(
+            ["systemctl", "--user", action, "ai-daemon.service"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode != 0:
+            _err(result.stderr.strip() or f"systemctl {action} failed")
+    except FileNotFoundError:
+        _err("systemctl not available")
+    _ok()
+
+
+# ── dispatch ────────────────────────────────────────────────────────────────
+
+def main() -> None:
+    if len(sys.argv) < 2:
+        _err("usage: aios-settings-write <command> [args]")
+    cmd = sys.argv[1]
+    args = sys.argv[2:]
+
+    if cmd == "save" and args:
+        cmd_save(args[0])
+    elif cmd == "load" and args:
+        cmd_load(args[0])
+    elif cmd == "unload":
+        cmd_unload()
+    elif cmd == "reload":
+        cmd_reload()
+    elif cmd == "set-key" and args:
+        cmd_set_key(args[0])
+    elif cmd == "get-key":
+        cmd_get_key()
+    elif cmd == "test-openrouter" and len(args) >= 2:
+        cmd_test_openrouter(args[0], args[1])
+    elif cmd == "autostart" and args:
+        cmd_autostart(args[0])
+    else:
+        _err(f"unknown or incomplete command: {cmd}")
+
+
+if __name__ == "__main__":
+    main()

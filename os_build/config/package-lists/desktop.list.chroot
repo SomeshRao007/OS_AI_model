@@ -71,6 +71,16 @@ kde-config-sddm
 # with executable engine) used by the AI assistant Plasmoid.
 qml6-module-org-kde-plasma-plasma5support
 
+# ── KCM (System Settings → AI Assistant) — Step 9 ──────────────────────────
+# kcmutils provides org.kde.kcmutils (SimpleKCM, ConfigModule). Pulled in by
+# systemsettings but listed explicitly since --apt-recommends false is
+# aggressive. kwallet-query is the CLI we shell out to from the settings
+# helper to store the OpenRouter API key.
+qml6-module-org-kde-kcmutils
+# kwallet-query binary ships in libkf5wallet-bin on trixie (KF6 variant is
+# only in experimental as of trixie release).
+libkf5wallet-bin
+
 # ── Basic CLI tools ─────────────────────────────────────────────────────────
 nano
 vim-tiny

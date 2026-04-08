@@ -154,7 +154,12 @@ ColumnLayout {
         }
 
         PlasmaComponents.Label {
-            text: "Thinking..."
+            // When the model isn't resident yet, tell the user what's
+            // actually happening — "Thinking..." would be a lie during a
+            // 3-20s cold load.
+            text: (appState.loading || !appState.modelLoaded)
+                  ? "Loading model..."
+                  : "Thinking..."
             font: Kirigami.Theme.smallFont
             color: Kirigami.Theme.disabledTextColor
         }
@@ -185,10 +190,12 @@ ColumnLayout {
         }
     }
 
-    // Safety timeout — if query takes >300s, stop thinking indicator
+    // Safety timeout — if query takes >600s, stop thinking indicator.
+    // Matches the bridge's cold-load timeout (lazy-load first call can
+    // need both a model load and CPU inference).
     Timer {
         id: thinkingTimeout
-        interval: 300000
+        interval: 600000
         onTriggered: {
             if (appState.thinking) {
                 appState.thinking = false;

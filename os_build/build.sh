@@ -64,6 +64,17 @@ else
     echo "[aios-build] WARNING: No plasmoid source at $PLASMOID_SRC"
 fi
 
+# Copy KCM (System Settings → AI Assistant) for install by 0400 hook
+KCM_SRC="/build/os_build/kcm/kcm_aios"
+KCM_DEST="${DAEMON_DIR}/kcm/kcm_aios"
+if [ -d "$KCM_SRC" ]; then
+    mkdir -p "$KCM_DEST"
+    cp -r "$KCM_SRC/"* "$KCM_DEST/"
+    echo "[aios-build] KCM staged: $(find "$KCM_DEST" -type f | wc -l) files"
+else
+    echo "[aios-build] WARNING: No KCM source at $KCM_SRC"
+fi
+
 echo "[aios-build] ── Step 2: Configure live-build ────────────────────────"
 # Runs auto/config which calls: lb config noauto <our flags>
 lb config

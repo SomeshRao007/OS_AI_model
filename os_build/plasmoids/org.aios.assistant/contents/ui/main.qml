@@ -34,7 +34,12 @@ PlasmoidItem {
         property string backend: "offline"
         property int vramUsed: 0
         property int vramFree: 0
+        property int ramUsed: 0
         property int uptimeSeconds: 0
+        // Lazy-load state (Step 9)
+        property bool modelLoaded: false
+        property bool loading: false
+        property bool lazyLoad: true
 
         // Last inference stats
         property int lastPromptTokens: 0
@@ -72,7 +77,13 @@ PlasmoidItem {
                 backend = s.backend || "offline";
                 vramUsed = parseInt(s.vram_used_mb) || 0;
                 vramFree = parseInt(s.vram_free_mb) || 0;
+                ramUsed = parseInt(s.ram_used_mb) || 0;
                 uptimeSeconds = parseInt(s.uptime_seconds) || 0;
+                // New Step 9 fields — bridge returns real bools, so test
+                // strictly against true to handle both bool and string forms.
+                modelLoaded = (s.model_loaded === true || s.model_loaded === "True" || s.model_loaded === "1");
+                loading = (s.loading === true || s.loading === "True" || s.loading === "1");
+                lazyLoad = (s.lazy_load === true || s.lazy_load === "True" || s.lazy_load === "1");
 
                 if (s.last_completion_tokens && s.last_elapsed_ms) {
                     lastPromptTokens = parseInt(s.last_prompt_tokens) || 0;
