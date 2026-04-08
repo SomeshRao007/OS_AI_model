@@ -66,7 +66,8 @@ def cmd_query(question):
     try:
         daemon = get_daemon()
         t0 = time.time()
-        response = daemon.Infer(GENERAL_PROMPT, question)
+        # Long timeout: local CPU inference can exceed the 25s dbus default.
+        response = daemon.Infer(GENERAL_PROMPT, question, timeout=300)
         elapsed = time.time() - t0
 
         stats = {"elapsed_s": round(elapsed, 2)}
@@ -75,6 +76,8 @@ def cmd_query(question):
             stats["prompt_tokens"] = int(info.get("prompt_tokens", 0))
             stats["completion_tokens"] = int(info.get("completion_tokens", 0))
             stats["elapsed_ms"] = int(info.get("elapsed_ms", 0))
+            stats["cost_usd"] = float(info.get("cost_usd", 0.0))
+            stats["backend"] = str(info.get("backend", ""))
             if stats["completion_tokens"] > 0 and elapsed > 0:
                 stats["tok_per_s"] = round(stats["completion_tokens"] / elapsed, 1)
         except dbus.exceptions.DBusException:

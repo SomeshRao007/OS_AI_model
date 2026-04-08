@@ -116,6 +116,8 @@ class AIDaemonService(dbus.service.Object):
             "prompt_tokens": 0,
             "completion_tokens": 0,
             "elapsed_ms": 0,
+            "cost_usd": 0.0,
+            "backend": "",
         }
         log.info("D-Bus service registered at %s", DBUS_OBJECT_PATH)
 
@@ -177,11 +179,13 @@ class AIDaemonService(dbus.service.Object):
 
         def _run():
             try:
+                t0 = time.time()
                 if self._master_agent is not None:
                     log.info("Query routing via MasterAgent (backend=%s)", self._backend)
                     result = self._master_agent.route(question)
                     log.info("Query complete: domain=%s, %d chars",
                              result.domain, len(result.response))
+                    self._update_inference_stats(int((time.time() - t0) * 1000))
                     reply_cb(result.response)
                 elif self._backend_manager is not None:
                     log.info("Query routing via backend directly (backend=%s)",
@@ -190,6 +194,7 @@ class AIDaemonService(dbus.service.Object):
                         _GENERAL_SYSTEM_PROMPT, question
                     )
                     log.info("Query complete: %d chars", len(response))
+                    self._update_inference_stats(int((time.time() - t0) * 1000))
                     reply_cb(response)
             except Exception as e:
                 log.error("Query failed: %s", e)
@@ -259,6 +264,8 @@ class AIDaemonService(dbus.service.Object):
             "prompt_tokens": dbus.UInt32(self._last_inference["prompt_tokens"]),
             "completion_tokens": dbus.UInt32(self._last_inference["completion_tokens"]),
             "elapsed_ms": dbus.UInt32(self._last_inference["elapsed_ms"]),
+            "cost_usd": dbus.Double(self._last_inference.get("cost_usd", 0.0)),
+            "backend": dbus.String(self._last_inference.get("backend", "")),
         }, signature="sv")
 
     @dbus.service.method(
@@ -434,18 +441,24 @@ class AIDaemonService(dbus.service.Object):
         """Capture token counts from the active backend after inference."""
         prompt_tokens = 0
         completion_tokens = 0
+        cost_usd = 0.0
+        backend_type = self._backend
 
         if self._backend_manager is not None:
             active = self._backend_manager.active
+            backend_type = active.backend_type
             if hasattr(active, 'engine') and active.engine is not None:
                 # LocalBackend — llama.cpp tracks completion tokens
                 completion_tokens = getattr(
                     active.engine, 'last_completion_tokens', 0)
+                prompt_tokens = getattr(
+                    active.engine, 'last_prompt_tokens', 0)
             elif hasattr(active, 'client'):
-                # OpenRouterBackend — API returns both counts
+                # OpenRouterBackend — API returns both counts + cost
                 client = active.client
                 prompt_tokens = getattr(client, 'last_prompt_tokens', 0)
                 completion_tokens = getattr(client, 'last_completion_tokens', 0)
+                cost_usd = float(getattr(client, 'last_cost', 0.0) or 0.0)
         elif self._engine is not None:
             completion_tokens = self._engine.last_completion_tokens
 
@@ -453,6 +466,8 @@ class AIDaemonService(dbus.service.Object):
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
             "elapsed_ms": elapsed_ms,
+            "cost_usd": cost_usd,
+            "backend": backend_type,
         }
 
     def _build_status(self) -> dbus.Dictionary:

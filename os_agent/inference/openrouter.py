@@ -78,6 +78,7 @@ class OpenRouterClient:
         self._max_tokens = max_tokens
         self._last_prompt_tokens = 0
         self._last_completion_tokens = 0
+        self._last_cost = 0.0
         self._session = requests.Session()
         self._session.headers.update({
             "Authorization": f"Bearer {api_key}",
@@ -97,6 +98,10 @@ class OpenRouterClient:
     @property
     def last_completion_tokens(self) -> int:
         return self._last_completion_tokens
+
+    @property
+    def last_cost(self) -> float:
+        return self._last_cost
 
     def close(self) -> None:
         """Close the HTTP session to free connections."""
@@ -120,6 +125,7 @@ class OpenRouterClient:
         usage = response.get("usage", {})
         self._last_prompt_tokens = usage.get("prompt_tokens", 0)
         self._last_completion_tokens = usage.get("completion_tokens", 0)
+        self._last_cost = float(usage.get("cost", 0.0) or 0.0)
         raw = response["choices"][0]["message"]["content"]
         return self._strip_thinking(raw)
 
@@ -261,6 +267,7 @@ class OpenRouterClient:
             "max_tokens": max_tokens,
             "temperature": self._temperature,
             "stream": stream,
+            "usage": {"include": True},
         }
         return payload
 
