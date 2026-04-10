@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+# aios-settings -- standalone AI Assistant settings app.
+#
+# Why this exists: In KDE Frameworks 6, KPackage-based pure-QML KCMs were
+# removed (the "KCModule" KPackage structure no longer ships). A KCM must be
+# a compiled C++ KQuickConfigModule plugin installed under
+# /usr/lib/<triplet>/qt6/plugins/plasma/kcms/systemsettings/. Since our build
+# pipeline is purely declarative, we ship this as a regular desktop app
+# instead of a System Settings module. The UI, capabilities, and scope are
+# identical -- daemon config (read by both the plasmoid and neurosh) is
+# written via the same aios-settings-write helper.
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+
+from PySide6.QtCore import QObject, QProcess, QUrl, Signal, Slot
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+
+
+class Bridge(QObject):
+    """QML-facing bridge that runs the existing daemon helpers via QProcess.
+
+    Mirrors the old DaemonBridge.qml API one-for-one. All subprocess calls
+    pass program + argv separately to QProcess.start() -- no shell, no
+    string interpolation of user-controlled text.
+    """
+
+    statusReceived = Signal("QVariant")
+    modelsReceived = Signal("QVariant")
+    operationResult = Signal(str, bool, str)  # op, ok, message
+
+    # -- Process plumbing -------------------------------------------------
+    def _run(self, op: str, argv: list[str]) -> None:
+        proc = QProcess(self)
+        proc.setProgram(argv[0])
+        proc.setArguments(argv[1:])
+
+        def _finished(_code: int, _status: QProcess.ExitStatus,
+                      p: QProcess = proc, tag: str = op) -> None:
+            stdout = bytes(p.readAllStandardOutput()).decode(
+                "utf-8", errors="replace").strip()
+            self._dispatch(tag, stdout)
+            p.deleteLater()
+
+        def _errored(_err: QProcess.ProcessError,
+                     p: QProcess = proc, tag: str = op) -> None:
+            self._dispatch(tag, "error: helper not found")
+            p.deleteLater()
+
+        proc.finished.connect(_finished)
+        proc.errorOccurred.connect(_errored)
+        proc.start()
+
+    def _dispatch(self, op: str, stdout: str) -> None:
+        if op == "status":
+            try:
+                self.statusReceived.emit(json.loads(stdout))
+            except (ValueError, json.JSONDecodeError):
+                self.statusReceived.emit({"backend": "offline"})
+            return
+        if op == "models":
+            try:
+                self.modelsReceived.emit(json.loads(stdout))
+            except (ValueError, json.JSONDecodeError):
+                self.modelsReceived.emit([])
+            return
+        ok = stdout.startswith("ok")
+        if ok:
+            msg = ""
+        elif stdout.startswith("error:"):
+            msg = stdout[len("error:"):].strip()
+        else:
+            msg = stdout
+        self.operationResult.emit(op, ok, msg)
+
+    # -- Public QML slots -------------------------------------------------
+    @Slot()
+    def fetchStatus(self) -> None:
+        self._run("status", ["aios-panel-bridge", "status"])
+
+    @Slot()
+    def fetchModels(self) -> None:
+        self._run("models", ["aios-panel-bridge", "models"])
+
+    @Slot(str)
+    def loadModel(self, name: str) -> None:
+        self._run("load", ["aios-settings-write", "load", name])
+
+    @Slot()
+    def unloadModel(self) -> None:
+        self._run("unload", ["aios-settings-write", "unload"])
+
+    @Slot()
+    def reloadSettings(self) -> None:
+        self._run("reload", ["aios-settings-write", "reload"])
+
+    @Slot(str)
+    def setOpenRouterKey(self, key: str) -> None:
+        self._run("setkey", ["aios-settings-write", "set-key", key])
+
+    @Slot(str, str)
+    def testOpenRouter(self, key: str, model_id: str) -> None:
+        self._run("test",
+                  ["aios-settings-write", "test-openrouter", key, model_id])
+
+    @Slot(str)
+    def switchModel(self, name: str) -> None:
+        self._run("switch", ["aios-panel-bridge", "switch", name])
+
+    @Slot(bool)
+    def setAutoStart(self, enabled: bool) -> None:
+        sub = "enable" if enabled else "disable"
+        self._run("autostart", ["aios-settings-write", "autostart", sub])
+
+    @Slot(str, str)
+    def applyAndReloadModel(self, settings_json: str, model_name: str) -> None:
+        """Save settings -> reload daemon config -> unload model -> load model."""
+        self._run_chain([
+            ("save", ["aios-settings-write", "save", settings_json]),
+            ("reload", ["aios-settings-write", "reload"]),
+            ("unload", ["aios-settings-write", "unload"]),
+            ("load", ["aios-settings-write", "load", model_name]),
+        ], "load")
+
+    def _run_chain(self, steps: list[tuple[str, list[str]]], final_op: str) -> None:
+        """Run a sequence of commands, stopping on first error."""
+        if not steps:
+            return
+        op, argv = steps[0]
+        remaining = steps[1:]
+        proc = QProcess(self)
+        proc.setProgram(argv[0])
+        proc.setArguments(argv[1:])
+
+        def _finished(_code: int, _status: QProcess.ExitStatus,
+                      p: QProcess = proc, tag: str = op,
+                      rest: list = remaining) -> None:
+            stdout = bytes(p.readAllStandardOutput()).decode(
+                "utf-8", errors="replace").strip()
+            p.deleteLater()
+            if not stdout.startswith("ok") and rest:
+                msg = stdout[len("error:"):].strip() \
+                    if stdout.startswith("error:") else stdout
+                self.operationResult.emit(final_op, False,
+                                          f"{tag} failed: {msg}")
+                return
+            if rest:
+                self._run_chain(rest, final_op)
+            else:
+                self._dispatch(final_op, stdout)
+
+        def _errored(_err: QProcess.ProcessError,
+                     p: QProcess = proc, tag: str = op) -> None:
+            p.deleteLater()
+            self.operationResult.emit(final_op, False,
+                                      f"{tag}: helper not found")
+
+        proc.finished.connect(_finished)
+        proc.errorOccurred.connect(_errored)
+        proc.start()
+
+    @Slot(str)
+    def saveSettings(self, json_payload: str) -> None:
+        """Save settings, then reload the daemon. Chained so QML only sees
+        a single reload operationResult."""
+        proc = QProcess(self)
+        proc.setProgram("aios-settings-write")
+        proc.setArguments(["save", json_payload])
+
+        def _after_save(_code: int, _status: QProcess.ExitStatus,
+                        p: QProcess = proc) -> None:
+            stdout = bytes(p.readAllStandardOutput()).decode(
+                "utf-8", errors="replace").strip()
+            p.deleteLater()
+            if stdout.startswith("ok"):
+                self._run("reload", ["aios-settings-write", "reload"])
+            else:
+                msg = stdout[len("error:"):].strip() \
+                    if stdout.startswith("error:") else stdout
+                self.operationResult.emit("reload", False, msg)
+
+        def _save_errored(_err: QProcess.ProcessError,
+                          p: QProcess = proc) -> None:
+            p.deleteLater()
+            self.operationResult.emit("reload", False, "helper not found")
+
+        proc.finished.connect(_after_save)
+        proc.errorOccurred.connect(_save_errored)
+        proc.start()
+
+
+def _resolve_qml() -> str:
+    """Find main.qml -- sibling of this script during dev, fixed on ISO."""
+    here = Path(__file__).resolve().parent / "main.qml"
+    if here.exists():
+        return str(here)
+    return "/usr/share/aios/settings/main.qml"
+
+
+def main() -> int:
+    app = QGuiApplication(sys.argv)
+    app.setApplicationName("AI Assistant Settings")
+    app.setOrganizationName("NBS")
+    app.setDesktopFileName("aios-settings")
+
+    engine = QQmlApplicationEngine()
+    bridge = Bridge()
+    engine.rootContext().setContextProperty("bridge", bridge)
+
+    qml_path = _resolve_qml()
+    if not os.path.exists(qml_path):
+        sys.stderr.write("aios-settings: main.qml not found at " + qml_path + "\n")
+        return 2
+
+    engine.load(QUrl.fromLocalFile(qml_path))
+    if not engine.rootObjects():
+        sys.stderr.write("aios-settings: QML engine failed to load root\n")
+        return 1
+
+    return app.exec()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

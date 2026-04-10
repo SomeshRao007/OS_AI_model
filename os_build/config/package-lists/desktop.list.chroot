@@ -71,14 +71,23 @@ kde-config-sddm
 # with executable engine) used by the AI assistant Plasmoid.
 qml6-module-org-kde-plasma-plasma5support
 
-# ── KCM (System Settings → AI Assistant) — Step 9 ──────────────────────────
-# kcmutils provides org.kde.kcmutils (SimpleKCM, ConfigModule). Pulled in by
-# systemsettings but listed explicitly since --apt-recommends false is
-# aggressive. kwallet-query is the CLI we shell out to from the settings
-# helper to store the OpenRouter API key.
-qml6-module-org-kde-kcmutils
+# ── Standalone Settings app — Step 9 ────────────────────────────────────────
+# Historical note: originally planned as a KCM (System Settings → AI
+# Assistant). KF6 removed the "KCModule" KPackage structure so pure-QML KCMs
+# are no longer discoverable by systemsettings — only compiled C++
+# KQuickConfigModule plugins work. To keep the build pipeline declarative
+# we ship a standalone Kirigami.ApplicationWindow launched from the app
+# menu + plasmoid gear button instead. The scope is identical: settings
+# write to ~/.config/ai-daemon/settings.yaml, read by plasmoid + neurosh.
+#
+# PySide6 hosts the QML engine and provides the QProcess bridge that shells
+# out to aios-panel-bridge / aios-settings-write.
+python3-pyside6.qtcore
+python3-pyside6.qtgui
+python3-pyside6.qtqml
 # kwallet-query binary ships in libkf5wallet-bin on trixie (KF6 variant is
-# only in experimental as of trixie release).
+# only in experimental as of trixie release). Still used by
+# aios-settings-write to stash the OpenRouter API key in KWallet.
 libkf5wallet-bin
 
 # ── Basic CLI tools ─────────────────────────────────────────────────────────

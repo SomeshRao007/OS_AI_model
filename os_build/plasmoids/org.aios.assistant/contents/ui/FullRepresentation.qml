@@ -74,6 +74,28 @@ ColumnLayout {
                     PlasmaComponents.ToolTip { text: "Clear chat" }
                     onClicked: chatModel.clear()
                 }
+
+                // Settings button -- launches the standalone settings app
+                // (see os_build/settings/). Shells out via the executable
+                // DataEngine because the plasmoid has no direct "open URL"
+                // primitive and the app runs as a normal detached process.
+                PlasmaComponents.ToolButton {
+                    icon.name: "configure"
+                    PlasmaComponents.ToolTip { text: "Settings" }
+                    onClicked: settingsLauncher.connectSource("aios-settings &")
+                }
+            }
+
+            // One-shot DataSource used only to fire-and-forget the settings
+            // app launcher. `aios-settings &` detaches immediately so the
+            // finished signal arrives right away and we disconnect.
+            P5Support.DataSource {
+                id: settingsLauncher
+                engine: "executable"
+                connectedSources: []
+                onNewData: function(source, data) {
+                    disconnectSource(source);
+                }
             }
 
             // Model + context info line

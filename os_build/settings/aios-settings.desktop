@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=AI Assistant
+GenericName=AI Assistant Settings
+Comment=Configure the NBS AI Assistant: models, cloud inference, generation parameters, and lifecycle
+Icon=preferences-system
+Exec=aios-settings
+Terminal=false
+Categories=Qt;KDE;Settings;Utility;
+Keywords=ai;assistant;llm;openrouter;gguf;inference;qwen;aios;nbs;
+StartupNotify=true
+X-KDE-StartupNotify=true
