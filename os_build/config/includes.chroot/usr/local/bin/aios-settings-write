@@ -135,12 +135,19 @@ def cmd_list_profiles() -> None:
 
 
 def cmd_upsert_profile(name: str, key: str, model: str) -> None:
+    if not name or not key:
+        _err("profile name and API key are required")
     try:
         daemon = _get_daemon()
         ok = bool(daemon.UpsertOpenRouterProfile(name, key, model))
     except Exception as e:
         _err(f"daemon unreachable: {e}")
-    _ok() if ok else _err("upsert failed (empty name or key?)")
+    if ok:
+        _ok()
+    else:
+        _err("KWallet write failed — is the wallet unlocked? "
+             "(check: qdbus org.kde.kwalletd6 /modules/kwalletd6 "
+             "org.kde.KWallet.localWallet)")
 
 
 def cmd_delete_profile(name: str) -> None:

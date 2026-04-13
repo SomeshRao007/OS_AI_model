@@ -12,9 +12,14 @@ JSON document with multiple named profiles and a ``current`` pointer:
     }
 
 Why a single blob instead of one-entry-per-profile:
-    - atomic read/write (one ``kwallet-query`` call, no partial state)
-    - avoids relying on ``kwallet-query -l`` output parsing
+    - atomic read/write (one KWallet D-Bus call, no partial state)
+    - avoids relying on folder-listing output parsing
     - the JSON shape is trivially versionable
+
+KWallet access uses D-Bus directly (org.kde.kwalletd6) rather than
+shelling out to ``kwallet-query``.  The KF5 ``kwallet-query`` binary
+cannot talk to the KF6 ``kwalletd6`` service that Plasma 6 runs, so
+the subprocess approach fails on any Plasma 6 system.
 
 All functions are defensive: KWallet missing, wallet locked, entry
 absent, malformed JSON — each returns an empty/default value and logs
@@ -27,15 +32,20 @@ from __future__ import annotations
 
 import json
 import logging
-import subprocess
 from typing import Any
+
+import dbus
 
 log = logging.getLogger("ai-daemon.kwallet")
 
-_WALLET = "kdewallet"
+_APP_ID = "ai-daemon"
 _FOLDER = "AI-OS"
 _ENTRY = "openrouter_profiles"
-_TIMEOUT = 10  # seconds per kwallet-query call
+
+# D-Bus coordinates for KWallet 6 (Plasma 6 / KDE Frameworks 6)
+_KW_SERVICE = "org.kde.kwalletd6"
+_KW_PATH = "/modules/kwalletd6"
+_KW_IFACE = "org.kde.KWallet"
 
 # Empty document shape — returned when KWallet has no stored profiles
 # yet, or when the stored JSON is malformed. Callers can safely index
@@ -43,35 +53,45 @@ _TIMEOUT = 10  # seconds per kwallet-query call
 _EMPTY_DOC: dict[str, Any] = {"profiles": {}, "current": ""}
 
 
-def _run_kwallet(argv: list[str], stdin: str | None = None) -> tuple[int, str, str]:
-    """Run a kwallet-query subcommand.
+# ── D-Bus helpers ─────────────────────────────────────────────────────────
 
-    Returns (returncode, stdout, stderr). Never raises — on
-    FileNotFoundError (kwallet-query missing) returns (127, "", "..."),
-    on timeout returns (124, "", "...").
-    """
+def _get_iface():
+    """Return the org.kde.KWallet D-Bus interface proxy, or None."""
     try:
-        result = subprocess.run(
-            argv,
-            input=stdin,
-            text=True,
-            capture_output=True,
-            timeout=_TIMEOUT,
-            check=False,
-        )
-        return result.returncode, result.stdout, result.stderr
-    except FileNotFoundError:
-        log.debug("kwallet-query binary not found")
-        return 127, "", "kwallet-query: not installed"
-    except subprocess.TimeoutExpired:
-        log.warning("kwallet-query timed out after %ds (wallet locked?)", _TIMEOUT)
-        return 124, "", "kwallet-query: timed out (wallet may be locked)"
+        bus = dbus.SessionBus()
+        proxy = bus.get_object(_KW_SERVICE, _KW_PATH)
+        return dbus.Interface(proxy, _KW_IFACE)
+    except dbus.exceptions.DBusException as exc:
+        log.debug("Cannot connect to kwalletd6: %s", exc)
+        return None
 
+
+def _open_wallet(iface) -> int:
+    """Open the local wallet and return a handle (>= 0), or -1 on failure."""
+    try:
+        wallet_name = str(iface.localWallet())
+        handle = int(iface.open(wallet_name, dbus.Int64(0), _APP_ID))
+        if handle < 0:
+            log.debug("kwalletd6 refused to open wallet %r (handle=%d)",
+                       wallet_name, handle)
+        return handle
+    except dbus.exceptions.DBusException as exc:
+        log.debug("Cannot open wallet: %s", exc)
+        return -1
+
+
+# ── Public API ────────────────────────────────────────────────────────────
 
 def is_available() -> bool:
-    """Quick health check — is kwallet-query installed and responsive?"""
-    rc, _, _ = _run_kwallet(["kwallet-query", "--help"])
-    return rc == 0 or rc == 1  # some builds print help and exit 1
+    """Quick health check — is kwalletd6 reachable?"""
+    iface = _get_iface()
+    if iface is None:
+        return False
+    try:
+        iface.localWallet()
+        return True
+    except dbus.exceptions.DBusException:
+        return False
 
 
 def load_profiles() -> dict[str, Any]:
@@ -80,33 +100,48 @@ def load_profiles() -> dict[str, Any]:
     Safe to call unconditionally — callers do not need to check
     ``is_available`` first.
     """
-    rc, stdout, stderr = _run_kwallet(
-        ["kwallet-query", "-r", _ENTRY, "-f", _FOLDER, _WALLET]
-    )
-    if rc != 0 or not stdout.strip():
-        if rc not in (0, 1):  # 0 = ok, 1 = entry missing (expected on fresh boot)
-            log.debug("kwallet read failed: rc=%d stderr=%s", rc, stderr.strip())
+    iface = _get_iface()
+    if iface is None:
+        return dict(_EMPTY_DOC)
+
+    handle = _open_wallet(iface)
+    if handle < 0:
         return dict(_EMPTY_DOC)
 
     try:
-        data = json.loads(stdout)
-    except json.JSONDecodeError as e:
-        log.warning("kwallet entry %s has malformed JSON: %s — resetting in memory",
-                    _ENTRY, e)
-        return dict(_EMPTY_DOC)
+        if not bool(iface.hasFolder(handle, _FOLDER, _APP_ID)):
+            return dict(_EMPTY_DOC)
 
-    if not isinstance(data, dict):
-        log.warning("kwallet entry %s is not an object — resetting in memory", _ENTRY)
-        return dict(_EMPTY_DOC)
+        raw = str(iface.readPassword(handle, _FOLDER, _ENTRY, _APP_ID))
+        if not raw:
+            return dict(_EMPTY_DOC)
 
-    # Normalise shape so downstream code never has to defensive-check
-    data.setdefault("profiles", {})
-    data.setdefault("current", "")
-    if not isinstance(data["profiles"], dict):
-        data["profiles"] = {}
-    if not isinstance(data["current"], str):
-        data["current"] = ""
-    return data
+        data = json.loads(raw)
+
+        if not isinstance(data, dict):
+            log.warning("kwallet entry %s is not an object — resetting", _ENTRY)
+            return dict(_EMPTY_DOC)
+
+        # Normalise shape so downstream code never has to defensive-check
+        data.setdefault("profiles", {})
+        data.setdefault("current", "")
+        if not isinstance(data["profiles"], dict):
+            data["profiles"] = {}
+        if not isinstance(data["current"], str):
+            data["current"] = ""
+        return data
+
+    except json.JSONDecodeError as exc:
+        log.warning("kwallet entry %s has malformed JSON: %s", _ENTRY, exc)
+        return dict(_EMPTY_DOC)
+    except dbus.exceptions.DBusException as exc:
+        log.debug("kwallet read failed: %s", exc)
+        return dict(_EMPTY_DOC)
+    finally:
+        try:
+            iface.close(handle, False, _APP_ID)
+        except dbus.exceptions.DBusException:
+            pass
 
 
 def save_profiles(doc: dict[str, Any]) -> bool:
@@ -115,15 +150,40 @@ def save_profiles(doc: dict[str, Any]) -> bool:
     Returns True on success, False otherwise (caller can decide whether
     to surface the error to the user). Does not raise.
     """
-    payload = json.dumps(doc, separators=(",", ":"))
-    rc, _stdout, stderr = _run_kwallet(
-        ["kwallet-query", "-w", _ENTRY, "-f", _FOLDER, _WALLET],
-        stdin=payload,
-    )
-    if rc != 0:
-        log.error("kwallet write failed: rc=%d stderr=%s", rc, stderr.strip())
+    iface = _get_iface()
+    if iface is None:
+        log.error("save_profiles: kwalletd6 not reachable")
         return False
-    return True
+
+    handle = _open_wallet(iface)
+    if handle < 0:
+        log.error("save_profiles: cannot open wallet")
+        return False
+
+    try:
+        # Create the folder on first use
+        if not bool(iface.hasFolder(handle, _FOLDER, _APP_ID)):
+            ok = bool(iface.createFolder(handle, _FOLDER, _APP_ID))
+            if not ok:
+                log.error("save_profiles: cannot create folder %r", _FOLDER)
+                return False
+
+        payload = json.dumps(doc, separators=(",", ":"))
+        rc = int(iface.writePassword(
+            handle, _FOLDER, _ENTRY, payload, _APP_ID))
+        if rc != 0:
+            log.error("save_profiles: writePassword returned %d", rc)
+            return False
+        return True
+
+    except dbus.exceptions.DBusException as exc:
+        log.error("save_profiles: D-Bus error: %s", exc)
+        return False
+    finally:
+        try:
+            iface.close(handle, False, _APP_ID)
+        except dbus.exceptions.DBusException:
+            pass
 
 
 # ── Profile CRUD ───────────────────────────────────────────────────────────
@@ -273,7 +333,7 @@ def _mask_key(key: str) -> str:
     if not key:
         return ""
     if len(key) <= 8:
-        return "•" * len(key)
+        return "\u2022" * len(key)
     prefix = ""
     body = key
     for pfx in ("sk-or-v1-", "sk-or-", "sk-"):
@@ -282,4 +342,4 @@ def _mask_key(key: str) -> str:
             body = key[len(pfx):]
             break
     tail = body[-4:] if len(body) >= 4 else body
-    return f"{prefix}{'•' * 8}{tail}"
+    return f"{prefix}{'\u2022' * 8}{tail}"

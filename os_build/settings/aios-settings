@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QProcess, QUrl, Signal, Slot
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
 
 
@@ -251,9 +251,16 @@ def _resolve_qml() -> str:
 
 def main() -> int:
     app = QGuiApplication(sys.argv)
-    app.setApplicationName("AI Assistant Settings")
+    app.setApplicationName("NBS Assistant Settings")
     app.setOrganizationName("NBS")
     app.setDesktopFileName("aios-settings")
+
+    # Window icon — look beside this script first, then the installed path
+    icon_path = Path(__file__).resolve().parent / "nbs-settings.svg"
+    if not icon_path.exists():
+        icon_path = Path("/usr/share/aios/settings/nbs-settings.svg")
+    if icon_path.exists():
+        app.setWindowIcon(QIcon(str(icon_path)))
 
     engine = QQmlApplicationEngine()
     bridge = Bridge()

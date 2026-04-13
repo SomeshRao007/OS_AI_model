@@ -5,7 +5,7 @@ import QtQuick.Window
 import org.kde.kirigami as Kirigami
 
 /*
- * AI Assistant Settings -- standalone Kirigami.ApplicationWindow.
+ * NBS Assistant Settings -- standalone Kirigami.ApplicationWindow.
  *
  * The `bridge` object is a Python Bridge injected as a QML context
  * property by aios-settings (PySide6 launcher). It exposes slots for
@@ -28,7 +28,7 @@ Kirigami.ApplicationWindow {
         return text;
     }
 
-    title: i18n("AI Assistant Settings")
+    title: i18n("NBS Assistant Settings")
     minimumWidth: Kirigami.Units.gridUnit * 32
     minimumHeight: Kirigami.Units.gridUnit * 28
     width: Kirigami.Units.gridUnit * 40
@@ -65,6 +65,33 @@ Kirigami.ApplicationWindow {
     property bool cloudInferenceEnabled: false
     property bool bannerAutoHidden: false
     readonly property bool isOpenRouter: daemonStatus.backend === "openrouter"
+
+    // Reusable right-click context menu for text fields
+    component FieldContextMenu: QQC2.Menu {
+        id: _ctxMenu
+        property var field
+        QQC2.MenuItem {
+            text: i18n("Cut")
+            enabled: _ctxMenu.field && _ctxMenu.field.selectedText.length > 0
+                     && !_ctxMenu.field.readOnly
+            onTriggered: _ctxMenu.field.cut()
+        }
+        QQC2.MenuItem {
+            text: i18n("Copy")
+            enabled: _ctxMenu.field && _ctxMenu.field.selectedText.length > 0
+            onTriggered: _ctxMenu.field.copy()
+        }
+        QQC2.MenuItem {
+            text: i18n("Paste")
+            enabled: _ctxMenu.field && _ctxMenu.field.canPaste
+                     && !_ctxMenu.field.readOnly
+            onTriggered: _ctxMenu.field.paste()
+        }
+        QQC2.MenuItem {
+            text: i18n("Select All")
+            onTriggered: _ctxMenu.field.selectAll()
+        }
+    }
 
     // Current profile state (derived from profiles list)
     property string currentProfileName: ""
@@ -168,7 +195,7 @@ Kirigami.ApplicationWindow {
     // Body -------------------------------------------------------------
     pageStack.initialPage: Kirigami.Page {
         id: page
-        title: i18n("AI Assistant")
+        title: i18n("NBS Assistant")
         padding: Kirigami.Units.largeSpacing
 
         ColumnLayout {
@@ -348,6 +375,12 @@ Kirigami.ApplicationWindow {
                             readOnly: true
 
                             property bool keyRevealed: false
+
+                            TapHandler {
+                                acceptedButtons: Qt.RightButton
+                                onTapped: cloudKeyMenu.popup()
+                            }
+                            FieldContextMenu { id: cloudKeyMenu; field: cloudKeyField }
                         }
                         QQC2.ToolButton {
                             icon.name: cloudKeyField.keyRevealed
@@ -719,6 +752,11 @@ Kirigami.ApplicationWindow {
                     id: newProfileName
                     Layout.fillWidth: true
                     placeholderText: i18n("e.g. personal, work")
+                    TapHandler {
+                        acceptedButtons: Qt.RightButton
+                        onTapped: nameMenu.popup()
+                    }
+                    FieldContextMenu { id: nameMenu; field: newProfileName }
                 }
                 QQC2.Label { text: i18n("API key:") }
                 QQC2.TextField {
@@ -726,12 +764,22 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     echoMode: TextInput.Password
                     placeholderText: i18n("sk-or-...")
+                    TapHandler {
+                        acceptedButtons: Qt.RightButton
+                        onTapped: keyMenu.popup()
+                    }
+                    FieldContextMenu { id: keyMenu; field: newProfileKey }
                 }
                 QQC2.Label { text: i18n("Model ID:") }
                 QQC2.TextField {
                     id: newProfileModel
                     Layout.fillWidth: true
                     placeholderText: i18n("e.g. anthropic/claude-sonnet-4-6")
+                    TapHandler {
+                        acceptedButtons: Qt.RightButton
+                        onTapped: modelMenu.popup()
+                    }
+                    FieldContextMenu { id: modelMenu; field: newProfileModel }
                 }
                 QQC2.Label {
                     text: i18n("After saving, select the profile and use "

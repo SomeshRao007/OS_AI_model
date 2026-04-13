@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=AI Assistant
-GenericName=AI Assistant Settings
+Name=NBS Assistant
+GenericName=NBS Assistant Settings
 Comment=Configure the NBS AI Assistant: models, cloud inference, generation parameters, and lifecycle
-Icon=preferences-system
+Icon=/usr/share/aios/settings/nbs-settings.svg
 Exec=aios-settings
 Terminal=false
 Categories=Qt;KDE;Settings;Utility;

@@ -85,10 +85,9 @@ qml6-module-org-kde-plasma-plasma5support
 python3-pyside6.qtcore
 python3-pyside6.qtgui
 python3-pyside6.qtqml
-# kwallet-query binary ships in libkf5wallet-bin on trixie (KF6 variant is
-# only in experimental as of trixie release). Still used by
-# aios-settings-write to stash the OpenRouter API key in KWallet.
-libkf5wallet-bin
+# KWallet access is now via D-Bus (org.kde.kwalletd6) directly from the
+# daemon — no need for the KF5 kwallet-query binary (which can't talk to
+# the KF6 kwalletd6 service that Plasma 6 runs).
 
 # ── Desktop notifications ──────────────────────────────────────────────────
 # Used by the AI daemon to surface fallback messages on startup (e.g.
