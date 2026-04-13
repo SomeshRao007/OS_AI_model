@@ -15,10 +15,8 @@ models:
     #   type: "gguf"
     #   description: "DeepSeek 7B for longer context tasks"
 
-  # OpenRouter cloud inference (optional, user-configured)
+  # OpenRouter cloud inference (optional, user-configured).
+  # API keys are stored in KWallet, not in this file.
+  # The user's last-used model is remembered per-profile in KWallet.
   openrouter:
     enabled: false
-    api_key: ""  # User sets via Settings UI or env var OPENROUTER_API_KEY
-    default_model: "deepseek/deepseek-chat"
-    # Any model on OpenRouter works:
-    # anthropic/claude-sonnet-4-6, google/gemini-2.5-pro, etc.

@@ -235,17 +235,75 @@ class BackendManager:
     def apply_generation_params(self, params: dict) -> dict:
         """Hot-apply generation params to the active backend.
 
-        No-op (returns {}) for OpenRouter (params are sent per-call) and
-        for the not_loaded state.
+        For ``LocalBackend`` this mutates the underlying llama.cpp
+        sampling params in place via ``engine.update_generation_params``.
+
+        For ``OpenRouterBackend`` we can't mutate in place (the
+        ``OpenRouterClient`` freezes params in ``__init__``), so we
+        rebuild the client under the lock with the same API key +
+        model ID but new sampling params, close the old one, and
+        swap it in. Only temperature / top_p / max_tokens are honoured
+        for the cloud path — top_k, repeat_penalty, seed, n_ctx and
+        n_gpu_layers are silently ignored because they are either
+        local-only or not reliably supported across OpenRouter providers.
+
+        Returns a dict of the params that were actually applied.
         """
         if self._active is None:
             return {}
-        if not isinstance(self._active, LocalBackend):
-            return {}
-        engine = self._active.engine
-        if engine is None or not getattr(engine, "loaded", False):
-            return {}
-        return engine.update_generation_params(params)
+        if isinstance(self._active, LocalBackend):
+            engine = self._active.engine
+            if engine is None or not getattr(engine, "loaded", False):
+                return {}
+            return engine.update_generation_params(params)
+        if isinstance(self._active, OpenRouterBackend):
+            return self._rebuild_openrouter_with_params(params)
+        return {}
+
+    def _rebuild_openrouter_with_params(self, params: dict) -> dict:
+        """Swap the active OpenRouterClient for a new one with updated params.
+
+        Runs under ``self._lock`` so an in-flight request never sees a
+        half-swapped client. Returns the dict of applied keys.
+        """
+        from os_agent.inference.openrouter import OpenRouterClient
+
+        applied: dict = {}
+        with self._lock:
+            if not isinstance(self._active, OpenRouterBackend):
+                return {}
+            old = self._active.client
+            temperature = params.get("temperature", old._temperature)
+            max_tokens = params.get("max_tokens", old._max_tokens)
+            # top_p passthrough: only send it if the caller set it
+            # explicitly (None = omit from payload, matches OpenAI spec).
+            top_p = params.get("top_p", getattr(old, "_top_p", None))
+            try:
+                new_client = OpenRouterClient(
+                    api_key=old._api_key,
+                    model_id=old._model_id,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    top_p=top_p,
+                )
+            except Exception as e:
+                log.warning("OpenRouter hot-rebuild failed: %s", e)
+                return {}
+
+            try:
+                old.close()
+            except Exception as e:  # best-effort cleanup
+                log.debug("Old OpenRouter client close failed: %s", e)
+
+            self._active = OpenRouterBackend(new_client)
+            applied = {
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+            if top_p is not None:
+                applied["top_p"] = top_p
+            log.info("OpenRouter client hot-rebuilt with %s", applied)
+        return applied
 
     def switch_to_local(self, model_name: str) -> tuple[bool, str]:
         """Switch to a local GGUF model.
@@ -272,6 +330,7 @@ class BackendManager:
                 model_id=model_id,
                 temperature=gen_cfg.get("temperature", 0.3),
                 max_tokens=gen_cfg.get("max_tokens", 1024),
+                top_p=gen_cfg.get("top_p"),
             )
 
             # Test connection before unloading local model
@@ -291,16 +350,63 @@ class BackendManager:
             log.info("Switched to OpenRouter model: %s", model_id)
             return True, ""
 
+    def resume_openrouter(self, api_key: str, model_id: str) -> tuple[bool, str]:
+        """Resume an OpenRouter session at daemon startup — no connection test.
+
+        Used by ``run_daemon`` when ``settings.active.backend == "openrouter"``
+        and a valid profile was found in KWallet. Unlike
+        ``switch_to_openrouter``, this does **not** block on a network
+        call, so a flaky network does not delay the daemon coming up.
+        The first real query will surface any credential / connectivity
+        errors at inference time.
+
+        Returns (success, error_message).
+        """
+        with self._lock:
+            from os_agent.inference.openrouter import OpenRouterClient
+
+            gen_cfg = self._config.get("generation", {})
+            try:
+                client = OpenRouterClient(
+                    api_key=api_key,
+                    model_id=model_id,
+                    temperature=gen_cfg.get("temperature", 0.3),
+                    max_tokens=gen_cfg.get("max_tokens", 1024),
+                    top_p=gen_cfg.get("top_p"),
+                )
+            except Exception as e:
+                return False, f"Failed to construct OpenRouter client: {e}"
+
+            if self._active is not None:
+                try:
+                    self._active.unload()
+                except Exception as e:
+                    log.warning("Unload of previous backend failed: %s", e)
+            self._active = OpenRouterBackend(client)
+            self._active_model_name = f"openrouter:{model_id}"
+            log.info("Resumed OpenRouter model: %s (no test)", model_id)
+            return True, ""
+
     def list_models(self) -> list[dict]:
-        """Return all available models with active flag set.
+        """Return all available **local** GGUF models with active flag.
 
         Returns list of dicts with: name, path, type, description, active.
+
+        OpenRouter is deliberately excluded from this list — cloud is
+        managed through the profile-based D-Bus methods
+        (``ListOpenRouterProfiles`` et al.) so we don't conflate local
+        model management with cloud credentials. The UI composes the
+        full picture by calling both endpoints.
         """
         registered = self._registry.list_models()
         discovered = self._registry.scan_model_dir()
 
+        seen: set[str] = set()
         result = []
         for model in registered + discovered:
+            if model.name in seen:
+                continue
+            seen.add(model.name)
             result.append({
                 "name": model.name,
                 "path": model.path,
@@ -308,21 +414,6 @@ class BackendManager:
                 "description": model.description,
                 "active": model.name == self._active_model_name,
             })
-
-        # Add OpenRouter entry if configured
-        or_config = self._registry.get_openrouter_config()
-        active_type = self._active.backend_type if self._active is not None else ""
-        if or_config.get("enabled") or active_type == "openrouter":
-            or_model = or_config.get("default_model", "deepseek/deepseek-chat")
-            or_name = f"openrouter:{or_model}"
-            result.append({
-                "name": or_name,
-                "path": "https://openrouter.ai/api/v1",
-                "type": "openrouter",
-                "description": f"Cloud inference via OpenRouter ({or_model})",
-                "active": active_type == "openrouter",
-            })
-
         return result
 
 

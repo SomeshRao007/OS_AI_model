@@ -28,9 +28,23 @@ SETTINGS_DIR = Path(
 )
 SETTINGS_PATH = SETTINGS_DIR / "settings.yaml"
 
-# Defaults for every key the KCM can touch. Anything not listed here is
-# treated as an advanced/daemon-side option and stays in daemon.yaml.
+# Defaults for every key the Settings UI can touch. Anything not listed
+# here is treated as an advanced/daemon-side option and stays in daemon.yaml.
+#
+# The ``active`` section is the persistence layer for "which backend was
+# the user on last?" — the daemon reads this on startup to resume the
+# user's choice across reboots / systemctl restarts. Writing it is the
+# responsibility of ``SwitchModel`` on the D-Bus service.
+#
+# ``openrouter`` intentionally has no hardcoded model ID. The per-user
+# model preference lives inside the KWallet profile (see os_agent.kwallet)
+# so we can support multiple profiles each with their own last-used model.
 DEFAULT_SETTINGS: dict[str, Any] = {
+    "active": {
+        "backend": "local",            # "local" | "openrouter"
+        "local_model": "",             # model name in the local registry
+        "openrouter_profile": "",      # name of the KWallet profile to use
+    },
     "model": {
         "default_local": "qwen3.5-4b-os-q4km",
         "lazy_load": True,
@@ -48,7 +62,6 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     },
     "openrouter": {
         "enabled": False,
-        "default_model": "deepseek/deepseek-chat",
     },
     "behaviour": {
         "notify_on_moderate": False,
@@ -99,6 +112,33 @@ def save_settings(settings: dict) -> None:
         yaml.safe_dump(settings, f, default_flow_style=False, sort_keys=False)
     os.chmod(tmp, 0o644)
     os.replace(tmp, SETTINGS_PATH)
+
+
+def update_active(backend: str, local_model: str = "",
+                  openrouter_profile: str = "") -> dict:
+    """Persist the "which backend is currently active" state.
+
+    Loads the current settings, merges the ``active`` section in place,
+    writes atomically, and returns the merged dict. Called after a
+    successful SwitchModel so a daemon restart picks the same backend
+    back up.
+
+    Args:
+        backend: "local" or "openrouter".
+        local_model: Model name in the local registry (for backend=local).
+        openrouter_profile: KWallet profile name (for backend=openrouter).
+    """
+    current = load_settings()
+    current.setdefault("active", {})
+    current["active"]["backend"] = backend
+    if backend == "local":
+        current["active"]["local_model"] = local_model
+        # Leave openrouter_profile alone — user may still have it set
+        # and expect to flip back to cloud from the UI.
+    else:
+        current["active"]["openrouter_profile"] = openrouter_profile
+    save_settings(current)
+    return current
 
 
 def apply_to_daemon_config(daemon_config: dict, settings: dict) -> dict:

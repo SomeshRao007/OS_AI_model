@@ -90,6 +90,11 @@ python3-pyside6.qtqml
 # aios-settings-write to stash the OpenRouter API key in KWallet.
 libkf5wallet-bin
 
+# ── Desktop notifications ──────────────────────────────────────────────────
+# Used by the AI daemon to surface fallback messages on startup (e.g.
+# "OpenRouter resume failed, falling back to local model").
+libnotify-bin
+
 # ── Basic CLI tools ─────────────────────────────────────────────────────────
 nano
 vim-tiny

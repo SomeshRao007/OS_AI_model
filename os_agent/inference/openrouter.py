@@ -3,6 +3,12 @@
 Provides the same infer()/infer_streaming() interface as InferenceEngine
 so agents can use either backend transparently. Handles SSE streaming,
 <think> block stripping, retry with backoff, and API key management.
+
+Key storage note: there is **no plaintext key file** in the built OS.
+The persistent store is KWallet (see ``os_agent.kwallet``). A single
+dev-only escape hatch ``OPENROUTER_API_KEY`` lets the daemon run on an
+Ubuntu dev host where KWallet isn't available. In the live/installed
+OS the daemon fetches the key via ``kwallet.get_current_profile()``.
 """
 
 from __future__ import annotations
@@ -11,13 +17,10 @@ import json
 import logging
 import os
 import re
-import stat
 import time
-from pathlib import Path
 from typing import Generator
 
 import requests
-import yaml
 
 log = logging.getLogger("ai-daemon.openrouter")
 
@@ -31,51 +34,46 @@ _BACKOFF_BASE = 1  # seconds: 1, 2, 4
 _THINK_RE = re.compile(r"<think>.*?</think>\s*", flags=re.DOTALL)
 _THINK_UNCLOSED_RE = re.compile(r"<think>.*", flags=re.DOTALL)
 
-_SECRETS_PATH = Path.home() / ".config" / "ai-daemon" / "secrets.yaml"
 
+def load_api_key_dev() -> str | None:
+    """Dev-mode only: return ``$OPENROUTER_API_KEY`` if set.
 
-def load_api_key() -> str | None:
-    """Load OpenRouter API key from secrets.yaml or env var.
-
-    Priority: secrets.yaml -> OPENROUTER_API_KEY env var.
-    Returns None if no key is configured.
+    On the built OS the daemon should call
+    ``os_agent.kwallet.get_current_profile()`` instead — this helper
+    exists exclusively so the daemon still runs on the Ubuntu dev host
+    where KWallet is not configured.
     """
-    if _SECRETS_PATH.exists():
-        # Warn if permissions are too open
-        file_mode = _SECRETS_PATH.stat().st_mode
-        if file_mode & (stat.S_IRGRP | stat.S_IROTH):
-            log.warning(
-                "secrets.yaml at %s is readable by group/others. "
-                "Run: chmod 600 %s", _SECRETS_PATH, _SECRETS_PATH
-            )
-
-        with open(_SECRETS_PATH) as f:
-            secrets = yaml.safe_load(f) or {}
-        if isinstance(secrets, str):
-            # File contains just the raw key, not a YAML dict
-            return secrets
-        if isinstance(secrets, dict):
-            key = secrets.get("openrouter_api_key")
-            if key:
-                return key
-
-    return os.environ.get("OPENROUTER_API_KEY")
+    return os.environ.get("OPENROUTER_API_KEY") or None
 
 
 class OpenRouterClient:
-    """OpenRouter API client with retry and streaming support."""
+    """OpenRouter API client with retry and streaming support.
+
+    Caller **must** provide a valid api_key — there is no implicit
+    lookup. The daemon fetches the key from KWallet (runtime) or
+    ``$OPENROUTER_API_KEY`` (dev mode) before instantiating.
+    """
 
     def __init__(
         self,
         api_key: str,
-        model_id: str = "deepseek/deepseek-chat",
+        model_id: str,
         temperature: float = 0.3,
         max_tokens: int = 1024,
+        top_p: float | None = None,
     ) -> None:
+        if not api_key:
+            raise ValueError("OpenRouterClient requires a non-empty api_key")
+        if not model_id:
+            raise ValueError("OpenRouterClient requires a non-empty model_id")
         self._api_key = api_key
         self._model_id = model_id
         self._temperature = temperature
         self._max_tokens = max_tokens
+        # top_p=None => omit from payload. OpenRouter forwards whatever
+        # the upstream model's default is in that case, which is the
+        # safest cross-provider behaviour.
+        self._top_p = top_p
         self._last_prompt_tokens = 0
         self._last_completion_tokens = 0
         self._last_cost = 0.0
@@ -257,7 +255,15 @@ class OpenRouterClient:
         max_tokens: int,
         stream: bool,
     ) -> dict:
-        """Build the OpenAI-compatible request payload."""
+        """Build the OpenAI-compatible request payload.
+
+        Only includes keys supported by every OpenRouter provider.
+        ``top_p`` is optional and only sent when the caller configured
+        it — this prevents provider errors on models that reject the
+        parameter. ``top_k``, ``repetition_penalty`` and ``seed`` are
+        intentionally **not** sent because they are provider-specific
+        on OpenRouter and trigger validation errors on several models.
+        """
         payload: dict = {
             "model": self._model_id,
             "messages": [
@@ -269,6 +275,8 @@ class OpenRouterClient:
             "stream": stream,
             "usage": {"include": True},
         }
+        if self._top_p is not None:
+            payload["top_p"] = self._top_p
         return payload
 
     def _request_with_retry(self, payload: dict, timeout: int) -> dict:

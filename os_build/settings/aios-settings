@@ -25,14 +25,16 @@ from PySide6.QtQml import QQmlApplicationEngine
 class Bridge(QObject):
     """QML-facing bridge that runs the existing daemon helpers via QProcess.
 
-    Mirrors the old DaemonBridge.qml API one-for-one. All subprocess calls
-    pass program + argv separately to QProcess.start() -- no shell, no
-    string interpolation of user-controlled text.
+    All subprocess calls pass program + argv separately to QProcess.start()
+    -- no shell, no string interpolation of user-controlled text.
     """
 
     statusReceived = Signal("QVariant")
     modelsReceived = Signal("QVariant")
+    settingsReceived = Signal("QVariant")
+    profilesReceived = Signal("QVariant")
     operationResult = Signal(str, bool, str)  # op, ok, message
+    keyRevealed = Signal(str, str)  # profile_name, plaintext_key
 
     # -- Process plumbing -------------------------------------------------
     def _run(self, op: str, argv: list[str]) -> None:
@@ -69,6 +71,22 @@ class Bridge(QObject):
             except (ValueError, json.JSONDecodeError):
                 self.modelsReceived.emit([])
             return
+        if op == "settings":
+            try:
+                self.settingsReceived.emit(json.loads(stdout))
+            except (ValueError, json.JSONDecodeError):
+                self.settingsReceived.emit({})
+            return
+        if op == "profiles":
+            try:
+                self.profilesReceived.emit(json.loads(stdout))
+            except (ValueError, json.JSONDecodeError):
+                self.profilesReceived.emit([])
+            return
+        if op.startswith("reveal:"):
+            profile_name = op[len("reveal:"):]
+            self.keyRevealed.emit(profile_name, stdout)
+            return
         ok = stdout.startswith("ok")
         if ok:
             msg = ""
@@ -87,6 +105,16 @@ class Bridge(QObject):
     def fetchModels(self) -> None:
         self._run("models", ["aios-panel-bridge", "models"])
 
+    @Slot()
+    def fetchSettings(self) -> None:
+        """Load current settings.yaml so the UI reflects saved values."""
+        self._run("settings", ["aios-settings-write", "get-settings"])
+
+    @Slot()
+    def fetchProfiles(self) -> None:
+        """List all OpenRouter profiles (masked keys)."""
+        self._run("profiles", ["aios-settings-write", "list-profiles"])
+
     @Slot(str)
     def loadModel(self, name: str) -> None:
         self._run("load", ["aios-settings-write", "load", name])
@@ -100,15 +128,6 @@ class Bridge(QObject):
         self._run("reload", ["aios-settings-write", "reload"])
 
     @Slot(str)
-    def setOpenRouterKey(self, key: str) -> None:
-        self._run("setkey", ["aios-settings-write", "set-key", key])
-
-    @Slot(str, str)
-    def testOpenRouter(self, key: str, model_id: str) -> None:
-        self._run("test",
-                  ["aios-settings-write", "test-openrouter", key, model_id])
-
-    @Slot(str)
     def switchModel(self, name: str) -> None:
         self._run("switch", ["aios-panel-bridge", "switch", name])
 
@@ -117,6 +136,34 @@ class Bridge(QObject):
         sub = "enable" if enabled else "disable"
         self._run("autostart", ["aios-settings-write", "autostart", sub])
 
+    # -- Profile management -----------------------------------------------
+    @Slot(str, str, str)
+    def upsertProfile(self, name: str, key: str, model: str) -> None:
+        self._run("upsert", ["aios-settings-write", "upsert-profile",
+                              name, key, model])
+
+    @Slot(str)
+    def deleteProfile(self, name: str) -> None:
+        self._run("delete", ["aios-settings-write", "delete-profile", name])
+
+    @Slot(str)
+    def setCurrentProfile(self, name: str) -> None:
+        self._run("setcurrent", ["aios-settings-write",
+                                  "set-current-profile", name])
+
+    @Slot(str)
+    def revealProfile(self, name: str) -> None:
+        """Return the plaintext key for a saved profile (eye-toggle)."""
+        self._run("reveal:" + name,
+                  ["aios-settings-write", "reveal-profile", name])
+
+    @Slot(str)
+    def testOpenRouter(self, profile_name: str) -> None:
+        """Test connection using a saved profile (key stays server-side)."""
+        self._run("test", ["aios-settings-write", "test-openrouter",
+                            profile_name])
+
+    # -- Compound operations ----------------------------------------------
     @Slot(str, str)
     def applyAndReloadModel(self, settings_json: str, model_name: str) -> None:
         """Save settings -> reload daemon config -> unload model -> load model."""
@@ -147,7 +194,7 @@ class Bridge(QObject):
                 msg = stdout[len("error:"):].strip() \
                     if stdout.startswith("error:") else stdout
                 self.operationResult.emit(final_op, False,
-                                          f"{tag} failed: {msg}")
+                                          tag + " failed: " + msg)
                 return
             if rest:
                 self._run_chain(rest, final_op)
@@ -158,7 +205,7 @@ class Bridge(QObject):
                      p: QProcess = proc, tag: str = op) -> None:
             p.deleteLater()
             self.operationResult.emit(final_op, False,
-                                      f"{tag}: helper not found")
+                                      tag + ": helper not found")
 
         proc.finished.connect(_finished)
         proc.errorOccurred.connect(_errored)

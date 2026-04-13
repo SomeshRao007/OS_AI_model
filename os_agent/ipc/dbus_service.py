@@ -70,10 +70,12 @@ from gi.repository import GLib
 
 import yaml
 
+from os_agent import kwallet
 from os_agent.settings import (
     SETTINGS_PATH,
     apply_to_daemon_config,
     load_settings,
+    update_active,
 )
 
 log = logging.getLogger("ai-daemon.dbus")
@@ -422,16 +424,40 @@ class AIDaemonService(dbus.service.Object):
         return self._switch_to_local(model_name)
 
     def _switch_to_openrouter(self, model_name: str) -> bool:
-        """Handle switching to OpenRouter backend."""
-        model_id = model_name.split(":", 1)[1]
+        """Handle switching to OpenRouter backend.
 
-        from os_agent.inference.openrouter import load_api_key
-        api_key = load_api_key()
-        if not api_key:
-            log.error("OpenRouter API key not configured")
+        Key resolution order:
+            1. Current KWallet profile (``kwallet.get_current_profile``)
+            2. ``$OPENROUTER_API_KEY`` env var (dev-mode only)
+
+        On success, persists ``active.backend=openrouter`` +
+        ``active.openrouter_profile=<name>`` to settings.yaml and
+        updates the profile's ``last_model`` so the next daemon boot
+        resumes on the same model.
+        """
+        model_id = model_name.split(":", 1)[1]
+        if not model_id:
+            log.error("OpenRouter model_id is empty")
             self.StatusChanged(self._build_status_with_warning(
-                "OpenRouter API key not set. Configure in "
-                "~/.config/ai-daemon/secrets.yaml or OPENROUTER_API_KEY env var."
+                "OpenRouter: no model selected."
+            ))
+            return False
+
+        profile_name = ""
+        api_key = ""
+        got = kwallet.get_current_profile()
+        if got is not None:
+            profile_name, api_key, _last_model = got
+        else:
+            # Dev-mode fallback — Ubuntu host without KWallet
+            from os_agent.inference.openrouter import load_api_key_dev
+            api_key = load_api_key_dev() or ""
+
+        if not api_key:
+            log.error("OpenRouter API key unavailable (no profile, no env var)")
+            self.StatusChanged(self._build_status_with_warning(
+                "OpenRouter: no profile selected. Open Settings and add "
+                "a profile with your API key."
             ))
             return False
 
@@ -447,7 +473,20 @@ class AIDaemonService(dbus.service.Object):
         self._backend = "openrouter"
         self._engine = None  # Local engine unloaded
         self._master_agent = None  # No local routing in cloud mode
-        log.info("Switched to OpenRouter: %s", model_id)
+
+        # Persist the choice so daemon restart resumes here.
+        try:
+            self._settings = update_active(
+                backend="openrouter",
+                openrouter_profile=profile_name,
+            )
+        except Exception as e:
+            log.warning("Could not persist active backend: %s", e)
+        # Remember this model for the next session on the same profile.
+        if profile_name:
+            kwallet.update_last_model(profile_name, model_id)
+
+        log.info("Switched to OpenRouter: %s (profile=%s)", model_id, profile_name or "<env>")
         self.StatusChanged(self._build_status())
         return True
 
@@ -470,6 +509,14 @@ class AIDaemonService(dbus.service.Object):
             # Rebuild MasterAgent with the new engine
             from os_agent.agents.master import MasterAgent
             self._master_agent = MasterAgent(self._engine, self._config)
+
+        # Persist the choice so daemon restart resumes here.
+        try:
+            self._settings = update_active(
+                backend="local", local_model=model_name,
+            )
+        except Exception as e:
+            log.warning("Could not persist active backend: %s", e)
 
         log.info("Switched to local model: %s (backend=%s)", model_name, self._backend)
         self.StatusChanged(self._build_status())
@@ -609,57 +656,162 @@ class AIDaemonService(dbus.service.Object):
         self.StatusChanged(self._build_status())
         return True
 
+    # ── OpenRouter profile management ───────────────────────────────────────
+    # All OpenRouter credentials are stored in KWallet as a single JSON
+    # blob (see os_agent/kwallet.py). These methods wrap the helper so
+    # the Settings UI can do profile CRUD over D-Bus. Keys are **masked**
+    # on the list endpoint; only ``RevealOpenRouterKey`` returns plaintext.
+
+    @dbus.service.method(
+        DBUS_INTERFACE,
+        in_signature="",
+        out_signature="aa{sv}",
+    )
+    def ListOpenRouterProfiles(self) -> list:
+        """Return all saved OpenRouter profiles with masked keys.
+
+        Each entry: ``{name, last_model, masked_key, is_current}``.
+        Keys are never returned in plaintext from this method — use
+        ``RevealOpenRouterKey(name)`` for the eye-toggle flow.
+        """
+        result = []
+        for p in kwallet.list_profiles_masked():
+            result.append(dbus.Dictionary({
+                "name": dbus.String(p["name"]),
+                "last_model": dbus.String(p["last_model"]),
+                "masked_key": dbus.String(p["masked_key"]),
+                "is_current": dbus.Boolean(p["is_current"]),
+            }, signature="sv"))
+        return dbus.Array(result, signature="a{sv}")
+
+    @dbus.service.method(
+        DBUS_INTERFACE,
+        in_signature="sss",
+        out_signature="b",
+    )
+    def UpsertOpenRouterProfile(self, name: str, key: str,
+                                last_model: str) -> bool:
+        """Add or replace an OpenRouter profile in KWallet.
+
+        Does not affect ``current`` — the UI explicitly calls
+        ``SetCurrentOpenRouterProfile`` for that.
+        """
+        ok = kwallet.upsert_profile(name, key, last_model)
+        if ok:
+            log.info("Upserted OpenRouter profile: %s", name)
+        return ok
+
     @dbus.service.method(
         DBUS_INTERFACE,
         in_signature="s",
         out_signature="b",
     )
-    def SetOpenRouterKey(self, key: str) -> bool:
-        """Persist the OpenRouter API key to ~/.config/ai-daemon/secrets.yaml.
+    def DeleteOpenRouterProfile(self, name: str) -> bool:
+        """Delete a profile. Clears ``current`` if it was the active one.
 
-        KCM calls this after storing the key in KWallet so the daemon has a
-        local copy to use at runtime (openrouter.py reads secrets.yaml).
-        File is written with mode 0600.
-
-        Pass an empty string to clear the key.
+        Refuses to delete the profile that the daemon is currently
+        running on (``backend=openrouter`` and this profile's name
+        matches ``active.openrouter_profile``) — the UI is expected to
+        switch the daemon to local first. This is a safety net.
         """
-        from os_agent.settings import SETTINGS_DIR
-        try:
-            SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
-            secrets_path = SETTINGS_DIR / "secrets.yaml"
-            tmp = secrets_path.with_suffix(".yaml.tmp")
-            with open(tmp, "w", encoding="utf-8") as f:
-                yaml.safe_dump({"openrouter_api_key": key}, f)
-            os.chmod(tmp, 0o600)
-            os.replace(tmp, secrets_path)
-            log.info("OpenRouter API key persisted (len=%d)", len(key))
-            return True
-        except OSError as e:
-            log.error("SetOpenRouterKey failed: %s", e)
+        active_name = self._settings.get("active", {}).get("openrouter_profile", "")
+        if (self._backend_manager is not None
+                and self._backend_manager.active is not None
+                and self._backend_manager.active.backend_type == "openrouter"
+                and active_name == name):
+            log.warning("Refusing to delete currently-active profile %s", name)
             return False
+        ok = kwallet.delete_profile(name)
+        if ok and active_name == name:
+            # Clear the stale pointer in settings too, so restart falls back.
+            try:
+                self._settings = update_active(
+                    backend=self._settings.get("active", {}).get("backend", "local"),
+                    local_model=self._settings.get("active", {}).get("local_model", ""),
+                    openrouter_profile="",
+                )
+            except Exception as e:
+                log.warning("Could not clear stale active profile pointer: %s", e)
+        if ok:
+            log.info("Deleted OpenRouter profile: %s", name)
+        return ok
 
     @dbus.service.method(
         DBUS_INTERFACE,
-        in_signature="ss",
+        in_signature="s",
+        out_signature="b",
+    )
+    def SetCurrentOpenRouterProfile(self, name: str) -> bool:
+        """Mark a profile as the active one and persist it in settings.yaml.
+
+        Pass an empty string to clear the pointer.
+        """
+        if not kwallet.set_current_profile(name):
+            return False
+        try:
+            self._settings = update_active(
+                backend=self._settings.get("active", {}).get("backend", "local"),
+                local_model=self._settings.get("active", {}).get("local_model", ""),
+                openrouter_profile=name,
+            )
+        except Exception as e:
+            log.warning("Could not persist current profile to settings.yaml: %s", e)
+        log.info("Set current OpenRouter profile: %s", name or "<none>")
+        return True
+
+    @dbus.service.method(
+        DBUS_INTERFACE,
+        in_signature="s",
+        out_signature="s",
+    )
+    def RevealOpenRouterKey(self, name: str) -> str:
+        """Return the plaintext API key for a saved profile.
+
+        Called only when the UI eye-toggle is clicked on a saved entry.
+        Returns empty string if the profile does not exist.
+        """
+        return kwallet.reveal_key(name)
+
+    @dbus.service.method(
+        DBUS_INTERFACE,
+        in_signature="s",
         out_signature="(bs)",
         async_callbacks=("reply_cb", "error_cb"),
     )
-    def TestOpenRouterConnection(self, key: str, model_id: str,
+    def TestOpenRouterConnection(self, profile_name: str,
                                  reply_cb, error_cb) -> None:
-        """Non-destructive OpenRouter connection test.
+        """Non-destructive OpenRouter connection test against a saved profile.
 
-        Does NOT switch backends — used by the "Test Connection" button in
-        the Settings KCM. Runs in a background thread (network call).
+        Takes the **profile name** — not a raw key. The daemon fetches
+        the key from KWallet internally so plaintext never crosses the
+        CLI / D-Bus wire. The UI must save the profile first (eye-button
+        workflow) before the Test button is enabled.
         """
         def _test():
             try:
+                got = kwallet.get_profile(profile_name)
+                if got is None:
+                    reply_cb((
+                        dbus.Boolean(False),
+                        dbus.String(f"Profile '{profile_name}' not found"),
+                    ))
+                    return
+                key, last_model = got
+                if not last_model:
+                    reply_cb((
+                        dbus.Boolean(False),
+                        dbus.String("Profile has no model ID — set one first"),
+                    ))
+                    return
+
                 from os_agent.inference.openrouter import OpenRouterClient
                 gen = self._settings.get("generation", {})
                 client = OpenRouterClient(
                     api_key=key,
-                    model_id=model_id or "deepseek/deepseek-chat",
+                    model_id=last_model,
                     temperature=gen.get("temperature", 0.5),
                     max_tokens=gen.get("max_tokens", 64),
+                    top_p=gen.get("top_p"),
                 )
                 ok, err = client.test_connection()
                 client.close()
@@ -851,6 +1003,25 @@ def _detect_gpu_backend() -> str:
         return "cpu"
 
 
+def _notify(summary: str, body: str = "") -> None:
+    """Send a desktop notification via notify-send (best effort).
+
+    This is used to surface daemon-startup fallback messages when the
+    user's last session was on OpenRouter but it couldn't resume. The
+    systemd ``--user`` service inherits ``DBUS_SESSION_BUS_ADDRESS``
+    from PAM, so ``notify-send`` works without extra env wiring.
+    """
+    import subprocess
+    try:
+        cmd = ["notify-send", "--app-name=AI Assistant", summary]
+        if body:
+            cmd.append(body)
+        subprocess.run(cmd, timeout=5, check=False,
+                       capture_output=True)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        log.info("notify-send unavailable; notification: %s — %s", summary, body)
+
+
 def _load_base_config() -> dict:
     """Load the read-only daemon.yaml baked into the ISO."""
     config_path = os.environ.get(
@@ -866,6 +1037,14 @@ def run_daemon() -> None:
     """Start the D-Bus daemon main loop.
 
     Called from os_agent.__main__ when --daemon flag is passed.
+
+    On startup, the daemon checks ``settings.active.backend``:
+
+    * ``"openrouter"`` — fetch the current KWallet profile, resume
+      without a blocking connection test (first real query surfaces
+      any credential errors). On any failure (KWallet locked, no
+      profile, no key) → desktop notification + fall back to local.
+    * ``"local"`` (or absent) — existing lazy/eager logic.
     """
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
 
@@ -878,18 +1057,44 @@ def run_daemon() -> None:
     bus_name = dbus.service.BusName(DBUS_BUS_NAME, bus)
     service = AIDaemonService(bus_name)
 
-    # Load base config + user settings, merge them, and decide whether to
-    # eagerly load the model or start in not_loaded state.
+    # Load base config + user settings, merge them.
     base_config = _load_base_config()
     user_settings = load_settings()
     merged_config = apply_to_daemon_config(base_config, user_settings)
 
     lazy_load = bool(user_settings.get("model", {}).get("lazy_load", True))
     model_path = merged_config.get("model", {}).get("path", "")
-    default_name = user_settings.get("model", {}).get(
-        "default_local", Path(model_path).stem if model_path else "")
+    default_name = (
+        user_settings.get("active", {}).get("local_model")
+        or user_settings.get("model", {}).get("default_local", "")
+        or (Path(model_path).stem if model_path else "")
+    )
 
-    if lazy_load:
+    active_section = user_settings.get("active", {})
+    desired_backend = active_section.get("backend", "local")
+
+    # ── OpenRouter resume path ─────────────────────────────────────────
+    if desired_backend == "openrouter":
+        log.info("Settings request OpenRouter resume (profile=%s)",
+                 active_section.get("openrouter_profile", "<none>"))
+        resumed = _try_resume_openrouter(
+            service, merged_config, user_settings, default_name)
+        if resumed:
+            # Skip the local-load path entirely — we're on cloud.
+            pass
+        else:
+            # Fallback to local lazy-load; notification already sent
+            # inside _try_resume_openrouter.
+            service.connect_engine(
+                engine=None,
+                model_name=default_name,
+                backend="",
+                config=merged_config,
+                settings=user_settings,
+            )
+
+    # ── Local model path (lazy or eager) ───────────────────────────────
+    elif lazy_load:
         log.info("Lazy-load enabled — starting in not_loaded state "
                  "(default=%s, settings=%s)", default_name, SETTINGS_PATH)
         service.connect_engine(
@@ -899,7 +1104,7 @@ def run_daemon() -> None:
             config=merged_config,
             settings=user_settings,
         )
-    elif Path(model_path).exists():
+    elif model_path and Path(model_path).exists():
         log.info("Eager load: %s", model_path)
         try:
             from os_agent.inference.engine import InferenceEngine
@@ -922,7 +1127,8 @@ def run_daemon() -> None:
                 backend="", config=merged_config, settings=user_settings,
             )
     else:
-        log.warning("Model file not found: %s — starting in not_loaded state", model_path)
+        log.warning("Model file not found: %s — starting in not_loaded state",
+                     model_path)
         service.connect_engine(
             engine=None, model_name=default_name,
             backend="", config=merged_config, settings=user_settings,
@@ -940,3 +1146,84 @@ def run_daemon() -> None:
 
     log.info("AI daemon ready on D-Bus: %s", DBUS_BUS_NAME)
     loop.run()
+
+
+def _try_resume_openrouter(service: AIDaemonService, merged_config: dict,
+                           user_settings: dict, default_name: str) -> bool:
+    """Attempt to resume an OpenRouter session from the saved profile.
+
+    Returns True if the daemon is now on OpenRouter. On any failure,
+    sends a desktop notification explaining why and returns False (the
+    caller should fall back to local).
+    """
+    # 1. Fetch the key from the current KWallet profile
+    got = kwallet.get_current_profile()
+    api_key = ""
+    model_id = ""
+    profile_name = ""
+
+    if got is not None:
+        profile_name, api_key, model_id = got
+    else:
+        # Dev fallback: env var
+        from os_agent.inference.openrouter import load_api_key_dev
+        api_key = load_api_key_dev() or ""
+        model_id = ""
+
+    if not api_key:
+        reason = "no KWallet profile" if not got else "empty API key in profile"
+        log.warning("OpenRouter resume failed: %s", reason)
+        _notify(
+            "OpenRouter resume failed",
+            f"Could not resume cloud inference ({reason}). "
+            "Falling back to local model.",
+        )
+        return False
+
+    if not model_id:
+        log.warning("OpenRouter resume failed: no model_id in profile %s",
+                     profile_name)
+        _notify(
+            "OpenRouter resume failed",
+            f"Profile '{profile_name}' has no model set. "
+            "Falling back to local model.",
+        )
+        return False
+
+    # 2. Wire up the service with no local engine
+    from os_agent.inference.backend import BackendManager
+    from os_agent.inference.model_registry import ModelRegistry
+
+    config_dir = Path(
+        os.environ.get("AI_DAEMON_CONFIG", "/opt/ai-daemon/config/daemon.yaml")
+    ).parent
+    registry = ModelRegistry(config_dir)
+    bm = BackendManager(
+        config=merged_config,
+        registry=registry,
+        initial_backend=None,
+        initial_model_name="",
+    )
+
+    ok, err = bm.resume_openrouter(api_key, model_id)
+    if not ok:
+        log.error("OpenRouter resume_openrouter failed: %s", err)
+        _notify(
+            "OpenRouter resume failed",
+            f"Could not start cloud inference: {err}. "
+            "Falling back to local model.",
+        )
+        return False
+
+    # 3. Connect to the service — no local engine, no MasterAgent
+    service._engine = None
+    service._model_name = f"openrouter:{model_id}"
+    service._backend = "openrouter"
+    service._config = merged_config
+    service._settings = user_settings
+    service._backend_manager = bm
+    service._master_agent = None
+    service.StatusChanged(service._build_status())
+
+    log.info("Resumed OpenRouter: model=%s, profile=%s", model_id, profile_name)
+    return True

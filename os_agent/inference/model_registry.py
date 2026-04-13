@@ -94,10 +94,10 @@ class ModelRegistry:
         return self._raw.get("models", {}).get("default", "")
 
     def get_openrouter_config(self) -> dict:
-        """Return the OpenRouter configuration section.
+        """Return the OpenRouter configuration section from models.yaml.
 
-        Returns dict with keys: enabled, api_key, default_model.
-        Empty dict if not configured.
+        Returns dict with key: enabled. API keys and per-profile model
+        preferences live in KWallet, not here. Empty dict if absent.
         """
         return self._raw.get("models", {}).get("openrouter", {})
 
