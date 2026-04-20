@@ -11,14 +11,26 @@ import difflib
 import logging
 import os
 import re
+import shlex
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import yaml
 from prompt_toolkit import PromptSession, HTML
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.completion import DynamicCompleter
 from prompt_toolkit.history import FileHistory
+
+from prompt_toolkit.lexers import DynamicLexer
+
+try:
+    from prompt_toolkit.lexers import PygmentsLexer
+    from pygments.lexers.shell import BashLexer
+    _HAS_PYGMENTS = True
+except ImportError:
+    _HAS_PYGMENTS = False
 
 from os_agent.agents.master import MasterAgent
 from os_agent.ipc.daemon_client import DaemonEngine, daemon_is_running
@@ -36,6 +48,7 @@ _CONFIG_PATH = Path(
                    str(_PROJECT_ROOT / "os_agent" / "config" / "daemon.yaml"))
 )
 _HISTORY_FILE = Path.home() / ".neurosh_history"
+_RC_FILE = Path.home() / ".neurosh_rc"
 
 _log = logging.getLogger("neurosh")
 
@@ -92,11 +105,38 @@ class NeuroshShell:
         )
 
         self._history = ShellHistory()
+
+        # Initialize shell state
+        self._env: dict[str, str] = os.environ.copy()
+        self._aliases: dict[str, str] = {}
+        self._last_exit_code = 0
+        self._git_branch_cache: dict[str, tuple[float, str | None]] = {}
+
+        # Load rc file
+        self._load_rc_file()
+
+        # Log if pygments not available
+        if not _HAS_PYGMENTS:
+            _log.debug("pygments not available, syntax highlighting disabled")
+
+        # Set up prompt session with syntax highlighting and auto-suggestions
+        # Note: Lexer is only applied in TERMINAL and AI modes (not CHATBOT)
+        lexer = None
+        if _HAS_PYGMENTS:
+            _bash_lexer = PygmentsLexer(BashLexer)
+            lexer = DynamicLexer(
+                lambda: _bash_lexer
+                if self._mode_mgr.mode in (ShellMode.TERMINAL, ShellMode.AI)
+                else None
+            )
+
         self._prompt_session = PromptSession(
             history=FileHistory(str(_HISTORY_FILE)),
             completer=DynamicCompleter(
                 lambda: create_completer(self._mode_mgr.mode)
             ),
+            auto_suggest=AutoSuggestFromHistory(),
+            lexer=lexer,
         )
 
         self._env_context = EnvironmentContext()
@@ -156,30 +196,54 @@ class NeuroshShell:
 
     def _build_prompt(self) -> HTML:
         mode = self._mode_mgr.mode
+        cwd = os.getcwd()
+        home = str(Path.home())
+        display_path = cwd.replace(home, "~", 1) if cwd.startswith(home) else cwd
+
+        # Get git branch
+        git_branch = self._get_git_branch(cwd)
+        git_str = f" <style fg='#6272a4'>({git_branch})</style>" if git_branch else ""
+
+        exit_code_str = ""
+        if self._last_exit_code != 0:
+            exit_code_str = f" <style fg='#ff5555'>✗{self._last_exit_code}</style>"
+
         if mode == ShellMode.CHATBOT:
-            return HTML("<b>neurosh</b><style fg='#e5c07b'>[chatbot]</style>&gt; ")
-        if mode == ShellMode.AI:
-            cwd = os.getcwd()
-            # Shorten home dir to ~
-            home = str(Path.home())
-            display_path = cwd.replace(home, "~", 1) if cwd.startswith(home) else cwd
             return HTML(
-                f"<b>neurosh</b><style fg='#61afef'>[ai:{display_path}]</style>&gt; "
+                f"<b>neurosh</b><style fg='#8be9fd'>[chatbot {display_path}]</style>"
+                f"{git_str}{exit_code_str}&gt; "
             )
-        return HTML("<b>neurosh</b>&gt; ")
+        if mode == ShellMode.AI:
+            return HTML(
+                f"<b>neurosh</b><style fg='#ff79c6'>[ai {display_path}]</style>"
+                f"{git_str}{exit_code_str}&gt; "
+            )
+        return HTML(
+            f"<b>neurosh</b> <style fg='#50fa7b'>[{display_path}]</style>"
+            f"{git_str}{exit_code_str}&gt; "
+        )
 
     # ── Terminal mode ────────────────────────────────────────────────────
 
     def _handle_terminal(self, cmd: str) -> None:
         """Execute a command via /bin/bash with inherited stdio."""
         try:
+            # Check for built-ins
+            if self._try_handle_builtin(cmd):
+                return
+
+            # Expand aliases
+            cmd = self._expand_alias(cmd)
+
             result = subprocess.run(
-                cmd, shell=True, executable="/bin/bash",
+                cmd, shell=True, executable="/bin/bash", env=self._env,
             )
+            self._last_exit_code = result.returncode
             self._history.add_terminal(cmd, result.returncode)
         except Exception:
             _log.exception("Terminal command failed: %s", cmd)
             self._renderer.print_error("Command execution failed.")
+            self._last_exit_code = 127
 
     # ── Chatbot mode ─────────────────────────────────────────────────────
 
@@ -224,7 +288,7 @@ class NeuroshShell:
                 self._handle_cd(raw)
                 return
 
-            # Direct bash command detection
+            # Direct bash command detection (also uses built-ins path)
             if self._looks_like_bash(raw):
                 self._handle_terminal(raw)
                 # Record in session so subsequent AI queries know what was run
@@ -461,6 +525,149 @@ class NeuroshShell:
         finally:
             sys.stdout.write("\n")
             sys.stdout.flush()
+
+    # ── Built-ins, aliases, and rc file ─────────────────────────────────
+
+    def _load_rc_file(self) -> None:
+        """Load rc file at startup and apply aliases/exports."""
+        if not _RC_FILE.exists():
+            return
+
+        try:
+            with open(_RC_FILE) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+
+                    if line.startswith("alias "):
+                        self._parse_alias_line(line[6:])
+                    elif line.startswith("export "):
+                        self._parse_export_line(line[7:])
+                    elif line.startswith("unalias "):
+                        parts = line[8:].split()
+                        if parts:
+                            self._aliases.pop(parts[0], None)
+                    elif line.startswith("unset "):
+                        parts = line[6:].split()
+                        if parts:
+                            self._env.pop(parts[0], None)
+        except Exception as e:
+            _log.debug("rc file load failed: %s", e)
+
+    def _try_handle_builtin(self, cmd: str) -> bool:
+        """Try to handle built-in commands. Returns True if handled."""
+        parts = cmd.split(maxsplit=1)
+        if not parts:
+            return False
+
+        builtin = parts[0]
+
+        if builtin == "export":
+            if len(parts) > 1:
+                self._parse_export_line(parts[1])
+            else:
+                # Bare export: list all
+                for k, v in self._env.items():
+                    if k not in os.environ or os.environ.get(k) != v:
+                        print(f"export {k}='{v}'")
+            return True
+
+        if builtin == "unset":
+            if len(parts) > 1:
+                for var in parts[1].split():
+                    self._env.pop(var, None)
+            return True
+
+        if builtin == "alias":
+            if len(parts) > 1:
+                self._parse_alias_line(parts[1])
+            else:
+                # Bare alias: list all
+                for name, cmd_str in self._aliases.items():
+                    print(f"alias {name}='{cmd_str}'")
+            return True
+
+        if builtin == "unalias":
+            if len(parts) > 1:
+                for name in parts[1].split():
+                    self._aliases.pop(name, None)
+            return True
+
+        return False
+
+    def _parse_export_line(self, line: str) -> None:
+        """Parse 'KEY=VALUE KEY2=VALUE2' or 'KEY' and update env."""
+        # Use shlex for proper quoting
+        try:
+            tokens = shlex.split(line)
+        except ValueError:
+            tokens = line.split()
+
+        for token in tokens:
+            if "=" in token:
+                key, val = token.split("=", 1)
+                self._env[key] = val
+            else:
+                # export KEY — read from current env
+                if token in os.environ:
+                    self._env[token] = os.environ[token]
+
+    def _parse_alias_line(self, line: str) -> None:
+        """Parse 'NAME=cmd' or 'NAME=\"cmd\"' and update aliases."""
+        if "=" not in line:
+            return
+
+        name, cmd_str = line.split("=", 1)
+        name = name.strip()
+
+        # Remove quotes
+        if cmd_str and cmd_str[0] in ("'", '"') and cmd_str[-1] == cmd_str[0]:
+            cmd_str = cmd_str[1:-1]
+
+        self._aliases[name] = cmd_str
+
+    def _expand_alias(self, cmd: str) -> str:
+        """Expand the first token if it's an alias."""
+        parts = cmd.split(maxsplit=1)
+        if not parts:
+            return cmd
+
+        first = parts[0]
+        if first in self._aliases:
+            rest = parts[1] if len(parts) > 1 else ""
+            return self._aliases[first] + (" " + rest if rest else "")
+
+        return cmd
+
+    def _get_git_branch(self, cwd: str) -> str | None:
+        """Get git branch by reading .git/HEAD directly (with 2s cache)."""
+        now = time.time()
+        cached = self._git_branch_cache.get(cwd)
+        if cached and now - cached[0] < 2:
+            return cached[1]
+
+        # Walk up to find .git
+        current = Path(cwd)
+        while current != current.parent:
+            git_head = current / ".git" / "HEAD"
+            if git_head.exists():
+                try:
+                    content = git_head.read_text().strip()
+                    if content.startswith("ref: refs/heads/"):
+                        branch = content[16:]
+                        self._git_branch_cache[cwd] = (now, branch)
+                        return branch
+                    else:
+                        # Detached HEAD
+                        self._git_branch_cache[cwd] = (now, None)
+                        return None
+                except Exception:
+                    pass
+            current = current.parent
+
+        self._git_branch_cache[cwd] = (now, None)
+        return None
 
     # ── Shared helpers ───────────────────────────────────────────────────
 

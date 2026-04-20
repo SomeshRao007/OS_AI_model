@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=AI Terminal (neurosh)
+GenericName=AI-Powered Terminal
+Comment=Interactive shell with built-in AI co-pilot
+Exec=konsole --profile Neurosh
+Icon=utilities-terminal
+Type=Application
+Terminal=false
+Categories=System;TerminalEmulator;Utility;
+Keywords=AI;shell;terminal;neurosh;
+StartupNotify=true
