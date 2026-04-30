@@ -20,3 +20,38 @@ libnotify-bin
 
 # ── D-Bus CLI tools (useful for debugging daemon IPC) ────────────────────────
 dbus-x11
+
+# ── Third-party repo install plumbing ──────────────────────────────────────────
+# Required by install scripts for VS Code, Docker, Node.js, etc. Modern Trixie
+# install scripts write directly to /etc/apt/keyrings/ + /etc/apt/sources.list.d/
+# (legacy `software-properties-common` / `add-apt-repository` is no longer
+# packaged in Trixie — the whole software-properties-* family was removed).
+gnupg
+dirmngr
+lsb-release
+
+# ── Developer CLI staples ──────────────────────────────────────────────────────
+tmux
+openssh-client
+gdb
+strace
+ripgrep
+fd-find
+fzf
+
+# ── Build tools (kept post-Step-11 cleanup) ───────────────────────────────────
+# Kept available for developers to compile third-party software. Originally planned for purge in ADR-P2-009 but retained per developer-OS targeting decision (2026-04-20).
+build-essential
+cmake
+pkg-config
+
+# ── Network diagnostics ────────────────────────────────────────────────────────
+iputils-ping
+traceroute
+mtr-tiny
+dnsutils
+ufw
+
+# ── Disk and partition management ──────────────────────────────────────────────
+partitionmanager
+filelight

@@ -105,3 +105,29 @@ tree
 unzip
 file
 man-db
+
+# ── Essential GUI applications ──────────────────────────────────────────────
+# kate: KDE text editor — richer than nano/vim-tiny for GUI editing
+kate
+# okular: PDF and document viewer
+okular
+# ark: archive manager GUI for exploring .tar, .zip, .7z, etc.
+ark
+# p7zip-full: 7z format support for ark and CLI usage
+p7zip-full
+# zip: command-line zip creation
+zip
+# gwenview: lightweight image viewer and organizer
+gwenview
+
+# ── Printing (CUPS with network printer auto-discovery) ──────────────────────
+# cups: CUPS print daemon
+cups
+# cups-browsed: network printer auto-discovery — discovers CUPS printers on LAN
+cups-browsed
+
+# ── Fonts — Latin + emoji coverage ───────────────────────────────────────────
+# CJK intentionally excluded to keep ISO lean; CJK users install fonts-noto-cjk on demand.
+fonts-noto-core
+fonts-noto-color-emoji
+fonts-liberation

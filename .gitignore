@@ -32,3 +32,6 @@ os_build/cache/
 os_build/build.log
 os_build/output/
 os_build/*.iso
+
+
+graphify-out
